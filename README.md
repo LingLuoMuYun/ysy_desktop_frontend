@@ -10,6 +10,7 @@
 - [0-1 开发规划](docs/planning/development-plan.md)
 - [Vibe Coding 协作规范](docs/process/vibe-coding.md)
 - [需求变更规范](docs/specs/README.md)
+- [Codex Agent 工作协议](AGENTS.md)
 
 ## 协作原则
 
