@@ -146,11 +146,10 @@ openspec/changes/task-create-training-job/
 8. 进行 Code Review + Spec Review。
 9. 合并后在定期 Spec Alignment Review 中检查是否需要收敛到 Global / Module Spec。
 
-## 与现有 docs/specs 的关系
+## 与历史 specs 目录的关系
 
-当前仓库已经存在 `docs/specs/changes/`。新规范引入 `openspec/` 后：
+本仓库已按 OpenSpec 体系重建，不再保留 `docs/specs/`。
 
-- 新需求优先使用 `openspec/changes/<change-id>/`。
-- 既有 `docs/specs/changes/` 作为历史变更记录保留。
-- 如果同一需求同时存在两个位置，PR 必须说明哪个是权威入口。
-- 迁移历史记录时必须单独提交，不要夹杂功能代码。
+- 新需求统一使用 `openspec/changes/<change-id>/`。
+- `openspec/global/` 和 `openspec/modules/` 是系统与模块约束的权威入口。
+- 不允许在 `docs/` 下重新创建平行的 specs 目录。

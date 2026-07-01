@@ -131,5 +131,5 @@ openspec/changes/<change-id>/
 
 - 一个 commit 只表达一个清晰意图。
 - 功能代码、Spec、测试可以在同一 PR 中，但不要把多个无关需求塞进一个 commit。
-- 每个可交付变更必须能回溯到 `openspec/changes/<change-id>` 或现有 `docs/specs/changes/<change-id>`。
+- 每个可交付变更必须能回溯到 `openspec/changes/<change-id>`。
 - 不允许跳过验证后声称完成。

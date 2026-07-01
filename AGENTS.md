@@ -42,7 +42,7 @@ Agent 开始工作前必须按顺序读取：
 9. `docs/development/ai-coding-rules.md`
 10. 相关代码文件、测试和 `packages/shared/`
 
-当前仓库仍保留历史 `docs/specs/changes/`。处理历史需求或已有变更时，也必须读取对应目录。
+本仓库已按 OpenSpec 体系重建。新需求和需求变更统一进入 `openspec/changes/`。
 
 ## 规则优先级
 
@@ -173,12 +173,6 @@ OpenSpec Change 目录：
 openspec/changes/<change-id>/
 ```
 
-历史 Spec 目录：
-
-```text
-docs/specs/changes/<change-id>/
-```
-
 不要为了某个需求创建 `src/task-001/` 或 `src/feature-x/` 这类零散代码目录。
 
 ## AI 必须遵守的规则
@@ -219,7 +213,6 @@ apps/agent/
 packages/shared/
 tests/
 openspec/changes/
-docs/specs/changes/
 docs/
 ```
 

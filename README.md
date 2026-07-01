@@ -13,7 +13,7 @@
 - [V1.0 PRD](<docs/prd/V1.0 PRD.md>)
 - [0-1 开发规划](docs/planning/development-plan.md)
 - [Vibe Coding 协作规范](docs/process/vibe-coding.md)
-- [需求变更规范](docs/specs/README.md)
+- [OpenSpec 工作流](docs/development/openspec-workflow.md)
 - [Codex Agent 工作协议](AGENTS.md)
 - [仓库结构说明](docs/architecture/repository-structure.md)
 

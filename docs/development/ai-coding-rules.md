@@ -12,7 +12,7 @@ AI 开始开发前必须按顺序读取：
 4. `AGENTS.md`
 5. 相关代码文件、测试和 API 契约
 
-当前仓库仍保留历史 `docs/specs/changes/`，处理历史变更时也必须读取对应目录。
+本仓库已按 OpenSpec 体系重建，需求变更统一读取 `openspec/changes/`。
 
 ## AI 必须遵守的规则
 
@@ -52,7 +52,6 @@ apps/agent/
 packages/shared/
 tests/
 openspec/changes/
-docs/specs/changes/
 docs/
 ```
 

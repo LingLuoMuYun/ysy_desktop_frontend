@@ -27,4 +27,4 @@ Current-entry scan: old PRD paths only appear in this change record as deletion 
 
 ## 遗留问题
 
-- 历史 `docs/specs/changes/bootstrap-docs` 中仍记录旧 PRD 转换过程，作为历史记录保留。
+- 当前 PRD 入口以 `docs/prd/V1.0 PRD.md` 为准。

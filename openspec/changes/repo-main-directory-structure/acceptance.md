@@ -26,4 +26,4 @@ git status: old root frontend/, output/ and PRD PDFs remain untracked and unstag
 
 ## 遗留问题
 
-- 历史 `docs/specs/changes/stack-go-python-ai` 仍记录旧 Go 后端决策，作为历史变更保留。
+- 仓库已移除历史 `docs/specs/`，当前规范依据统一来自 `openspec/`。

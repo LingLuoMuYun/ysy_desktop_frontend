@@ -50,7 +50,7 @@ AI 不应直接做：
 - `fix/<change-id>`：问题修复分支
 - `docs/<change-id>`：文档分支
 
-`change-id` 与 `docs/specs/changes/<change-id>/` 保持一致。
+`change-id` 与 `openspec/changes/<change-id>/` 保持一致。
 
 示例：
 
