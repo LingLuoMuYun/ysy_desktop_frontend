@@ -1,6 +1,6 @@
 # Backend Module Spec
 
-本文件定义桌面智算 Python 后端边界。当前仓库后端位于 `backend/`，API 契约位于 `contracts/`。
+本文件定义桌面智算 Python 后端边界。当前仓库后端位于 `apps/backend/`，共享契约位于 `packages/shared/`。
 
 ## 服务边界
 

@@ -95,10 +95,10 @@ Git 分支负责把代码变更和需求 Spec 绑定起来。
 当前仓库代码按模块位于：
 
 ```text
-frontend/
-backend/
-ai-assistant/
-contracts/
+apps/frontend/
+apps/backend/
+apps/agent/
+packages/shared/
 ```
 
 OpenSpec Change 按需求位于：

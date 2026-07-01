@@ -21,8 +21,8 @@
 
 - 所有核心功能必须同时提供 UI 点击入口和 AI 助手入口。
 - AI 助手不是聊天框，而是项目、环境、训练、服务、诊断和分析的操作中枢。
-- 前端采用 React + TypeScript；桌面壳以当前仓库实现为准，当前仓库存在 Tauri 配置。如团队确认切换 Electron，必须先创建独立 OpenSpec Change。
-- 后端和智能体能力以 Python 为主。
+- 前端 / 桌面端采用 React + Electron。
+- 后端和智能体能力均以 Python 为主。
 - OpenSpec 是需求变更与 AI Coding 的规范体系。
 - AGENTS.md 是 AI Coding 工具读取的行为规则，不是 PRD，也不是 Global Spec。
 - Git 分支负责把代码变更、OpenSpec Change、验证结果和 commit 绑定起来。
@@ -40,7 +40,7 @@ Agent 开始工作前必须按顺序读取：
 7. `docs/development/openspec-workflow.md`
 8. `docs/development/git-workflow.md`
 9. `docs/development/ai-coding-rules.md`
-10. 相关代码文件、测试和 `contracts/`
+10. 相关代码文件、测试和 `packages/shared/`
 
 当前仓库仍保留历史 `docs/specs/changes/`。处理历史需求或已有变更时，也必须读取对应目录。
 
@@ -161,10 +161,10 @@ Git 分支负责把代码变更和需求 Spec 绑定起来。
 当前仓库代码目录：
 
 ```text
-frontend/
-backend/
-ai-assistant/
-contracts/
+apps/frontend/
+apps/backend/
+apps/agent/
+packages/shared/
 ```
 
 OpenSpec Change 目录：
@@ -213,10 +213,10 @@ docs/specs/changes/<change-id>/
 AI 可以修改：
 
 ```text
-frontend/
-backend/
-ai-assistant/
-contracts/
+apps/frontend/
+apps/backend/
+apps/agent/
+packages/shared/
 tests/
 openspec/changes/
 docs/specs/changes/

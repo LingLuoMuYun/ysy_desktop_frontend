@@ -1,0 +1,31 @@
+# Proposal: repo-main-directory-structure
+
+## 背景
+
+main 分支需要建立稳定、可扩展、适合团队和 AI Coding 工具读取的仓库代码目录结构。当前文档中仍存在旧目录、Go 后端和 Tauri 表述，与本轮目标结构不一致。
+
+## 目标
+
+- 在 main 分支建立 `apps/`、`packages/`、`configs/`、`tests/`、`docs/architecture/` 等顶层结构。
+- 明确 `apps/frontend/`、`apps/backend/`、`apps/agent/` 的职责。
+- 更新 README、AGENTS、OpenSpec Module Spec 和开发规范中的路径与技术方向。
+- 将前端 / 桌面端方向明确为 React + Electron。
+- 将后端方向明确为 Python。
+
+## 非目标
+
+- 不迁移本地未跟踪的旧 `frontend/` 目录。
+- 不初始化真实 React、Electron 或 Python 工程。
+- 不选择数据库和具体 Python Web 框架。
+- 不删除本地未跟踪产物。
+
+## 影响范围
+
+- 文档：README、AGENTS、开发规范、架构文档、OpenSpec Change。
+- OpenSpec：frontend/backend/agent Module Spec 路径和技术边界。
+- 代码：仅新增目录 README 占位，不新增运行时代码。
+
+## 风险
+
+- 本地存在未跟踪旧 `frontend/`、`output/` 和 PDF 文件，提交时必须避免误纳入。
+- 历史 `docs/specs/changes/stack-go-python-ai` 仍记录旧决策，作为历史记录保留，不作为当前规范依据。

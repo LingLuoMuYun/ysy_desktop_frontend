@@ -46,10 +46,10 @@ AI 输出或修改代码前必须检查：
 ## AI 可以修改
 
 ```text
-frontend/
-backend/
-ai-assistant/
-contracts/
+apps/frontend/
+apps/backend/
+apps/agent/
+packages/shared/
 tests/
 openspec/changes/
 docs/specs/changes/

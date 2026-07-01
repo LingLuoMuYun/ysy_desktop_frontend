@@ -1,11 +1,12 @@
 # Frontend Module Spec
 
-本文件定义桌面智算前端与桌面端交互约束。当前仓库前端位于 `frontend/`。
+本文件定义桌面智算前端与桌面端交互约束。当前仓库前端位于 `apps/frontend/`。
 
 ## 技术边界
 
 - 前端使用 React + TypeScript。
-- 桌面壳以当前仓库实现为准；当前仓库存在 `frontend/src-tauri`。如团队确认切换 Electron，必须先创建独立 OpenSpec Change。
+- 桌面壳使用 Electron。
+- Electron 主进程、预加载脚本、渲染进程和桌面能力封装必须分层清晰。
 - 前端不得直接执行训练、环境修改、服务启动等本机高风险动作，必须调用后端受控 API。
 
 ## 页面布局

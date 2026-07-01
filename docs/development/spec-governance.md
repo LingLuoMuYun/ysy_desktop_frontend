@@ -30,10 +30,10 @@
 
 ```text
 openspec/changes/<change-id>/
-frontend/
-backend/
-ai-assistant/
-contracts/
+apps/frontend/
+apps/backend/
+apps/agent/
+packages/shared/
 tests/
 docs/
 ```
@@ -56,12 +56,12 @@ AGENTS.md
 - 调整本地文件读写、依赖安装、服务端口暴露规则。
 - 切换桌面壳技术栈。
 
-## 桌面壳技术栈差异处理
+## 桌面壳技术栈规则
 
-外部 V1.0 PRD 与当前仓库可能出现 Electron / Tauri 表述差异。当前仓库实际存在 `frontend/src-tauri`，因此本规范要求：
+V1.0 桌面端采用 React + Electron，并放置在 `apps/frontend/`。
 
-- 交付实现以当前仓库真实技术栈为准。
-- 如果团队决定从 Tauri 切换到 Electron，必须先创建独立 OpenSpec Change。
+- Electron 主进程、预加载脚本、渲染进程和配置模板必须边界清晰。
+- 如后续切换桌面壳，必须先创建独立 OpenSpec Change。
 - 切换 Change 必须说明构建、打包、系统权限、文件选择器、窗口控制、自动更新和发布流程影响。
 - 不允许在普通功能 PR 中顺手切换桌面壳。
 
