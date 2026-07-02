@@ -3,9 +3,9 @@
 ## 任务清单
 
 - [x] 新增架构文档目录和仓库结构说明。
-- [x] 新增 `apps/frontend/` 目录说明。
-- [x] 新增 `apps/backend/` 目录说明。
-- [x] 新增 `apps/agent/` 目录说明。
+- [x] 新增 `frontend/` 目录说明。
+- [x] 新增 `backend/` 目录说明。
+- [x] 新增 `agent/` 目录说明。
 - [x] 新增 `packages/shared/` 目录说明。
 - [x] 新增 `configs/` 目录说明。
 - [x] 新增 `scripts/` 目录说明。

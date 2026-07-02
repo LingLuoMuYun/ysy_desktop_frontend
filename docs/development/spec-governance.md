@@ -30,9 +30,9 @@
 
 ```text
 openspec/changes/<change-id>/
-apps/frontend/
-apps/backend/
-apps/agent/
+frontend/
+backend/
+agent/
 packages/shared/
 tests/
 docs/
@@ -58,7 +58,7 @@ AGENTS.md
 
 ## 桌面壳技术栈规则
 
-V1.0 桌面端采用 React + Electron，并放置在 `apps/frontend/`。
+V1.0 桌面端采用 React + Electron，并放置在 `frontend/`。
 
 - Electron 主进程、预加载脚本、渲染进程和配置模板必须边界清晰。
 - 如后续切换桌面壳，必须先创建独立 OpenSpec Change。

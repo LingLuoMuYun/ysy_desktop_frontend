@@ -20,7 +20,7 @@
 Test-Path docs/specs: False.
 rg docs/specs references: only deletion/no-longer-retained notes remain.
 git diff --check: passed.
-Staging scope excludes existing apps/* deletions and root agent/backend/frontend additions.
+Staging scope excludes existing module directory additions/deletions unrelated to this change.
 ```
 
 ## 遗留问题

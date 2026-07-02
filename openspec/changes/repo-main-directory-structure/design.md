@@ -3,10 +3,9 @@
 ## 目录设计
 
 ```text
-apps/
-  frontend/
-  backend/
-  agent/
+frontend/
+backend/
+agent/
 packages/
   shared/
 configs/
@@ -24,11 +23,11 @@ tests/
 
 ## 关键约束
 
-- `apps/frontend/` 承载 React + Electron。
-- `apps/backend/` 承载 Python 后端、本地执行、检测和服务管理。
-- `apps/agent/` 承载 Python AI 助手和智能编排。
+- `frontend/` 承载 React + Electron。
+- `backend/` 承载 Python 后端、本地执行、检测和服务管理。
+- `agent/` 承载 Python AI 助手和智能编排。
 - `packages/shared/` 承载跨模块共享契约，前期可为空。
-- 根目录不再使用 `frontend/`、`backend/`、`ai-assistant/` 作为正式代码路径。
+- 模块级实现细则后续由各模块自己的 `AGENTS.md` 维护。
 
 ## 兼容性
 

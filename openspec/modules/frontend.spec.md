@@ -1,6 +1,6 @@
 # Frontend Module Spec
 
-本文件定义桌面智算前端与桌面端交互约束。当前仓库前端位于 `apps/frontend/`。
+本文件定义桌面智算前端与桌面端交互约束。当前仓库前端位于 `frontend/`。
 
 ## 技术边界
 

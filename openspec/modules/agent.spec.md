@@ -1,6 +1,6 @@
 # Agent Module Spec
 
-本文件定义桌面智算 AI 助手与智能编排边界。当前仓库 AI 助手位于 `apps/agent/`。
+本文件定义桌面智算 AI 助手与智能编排边界。当前仓库 AI 助手位于 `agent/`。
 
 ## AI 助手角色
 

@@ -14,9 +14,9 @@
 | `openspec/global/` | Global Spec，定义系统边界和全局规则 |
 | `openspec/modules/` | Module Spec，定义前端、后端、智能体模块规则 |
 | `openspec/changes/` | 每个需求对应的 OpenSpec Change |
-| `apps/frontend/` | React + Electron 桌面端代码 |
-| `apps/backend/` | Python 后端、本地服务、任务执行器、数据/模型/环境检测 |
-| `apps/agent/` | AI 助手、上下文组装、日志诊断、表单建议、动作请求 |
+| `frontend/` | React + Electron 桌面端代码 |
+| `backend/` | Python 后端、本地服务、任务执行器、数据/模型/环境检测 |
+| `agent/` | AI 助手、上下文组装、日志诊断、表单建议、动作请求 |
 | `packages/shared/` | 前后端/智能体共用类型、枚举、工具方法，前期可为空 |
 | `scripts/` | 启动、构建、测试、打包脚本 |
 | `tests/` | 集成测试、端到端测试、验收用例 |
@@ -24,12 +24,12 @@
 
 ## 组织原则
 
-- 产品代码只进入 `apps/` 和 `packages/`。
+- 产品代码只进入 `frontend/`、`backend/`、`agent/` 和 `packages/`。
 - 文档和需求治理进入 `docs/` 与 `openspec/`。
 - 脚本进入 `scripts/`，不要散落到各模块根目录之外。
 - 配置模板进入 `configs/`，本机私有配置不得提交。
 - 测试按集成、端到端、验收维度进入 `tests/`。
 
-## 旧路径处理
+## 模块级 AGENTS
 
-仓库根目录不再使用 `frontend/`、`backend/`、`ai-assistant/` 作为正式代码目录。若本地存在这些目录，视为未迁移或临时产物，不应直接提交到 `main`。
+根目录 `AGENTS.md` 只定义全局协作协议。后续模块实现细则分别由 `frontend/AGENTS.md`、`backend/AGENTS.md`、`agent/AGENTS.md` 维护。

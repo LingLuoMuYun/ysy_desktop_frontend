@@ -46,9 +46,9 @@ AI 输出或修改代码前必须检查：
 ## AI 可以修改
 
 ```text
-apps/frontend/
-apps/backend/
-apps/agent/
+frontend/
+backend/
+agent/
 packages/shared/
 tests/
 openspec/changes/

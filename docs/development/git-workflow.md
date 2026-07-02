@@ -95,9 +95,9 @@ Git 分支负责把代码变更和需求 Spec 绑定起来。
 当前仓库代码按模块位于：
 
 ```text
-apps/frontend/
-apps/backend/
-apps/agent/
+frontend/
+backend/
+agent/
 packages/shared/
 ```
 

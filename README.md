@@ -20,9 +20,9 @@
 ## 仓库结构
 
 ```text
-apps/frontend/      React + Electron 桌面端代码
-apps/backend/       Python 后端、本地服务、任务执行器、数据/模型/环境检测
-apps/agent/         AI 助手、上下文组装、日志诊断、表单建议、动作请求
+frontend/           React + Electron 桌面端代码
+backend/            Python 后端、本地服务、任务执行器、数据/模型/环境检测
+agent/              AI 助手、上下文组装、日志诊断、表单建议、动作请求
 packages/shared/    前后端/智能体共用类型、枚举、工具方法
 configs/            配置模板，例如日志、环境、Electron、后端配置
 scripts/            启动、构建、测试、打包脚本
