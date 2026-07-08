@@ -1,4 +1,4 @@
-import { Activity, Bot, CheckCircle2, FolderOpen, Pencil, Plus, RefreshCw, RotateCw, Save, Search, Star, Trash2, User, X, XCircle } from "lucide-react";
+import { Activity, Bot, CheckCircle2, FolderOpen, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle } from "lucide-react";
 import { useRef, useState } from "react";
 import { StatusBadge } from "../components/StatusBadge";
 import { assistantModelDetails, assistantModels, runtimeEnvironmentDetails, runtimeEnvironments } from "../mocks/prototypeData";
@@ -45,10 +45,6 @@ export function SettingsPage() {
                 <Plus size={15} />
                 {activeTab === "assistant" ? "添加模型" : "创建环境"}
               </button>
-              <button className="settings-action-button" type="button">
-                <RefreshCw size={15} />
-                {activeTab === "assistant" ? "检测全部模型" : "检测全部环境"}
-              </button>
             </div>
           ) : null}
         </header>
@@ -86,8 +82,6 @@ function EnvironmentSettings({
   onSelectEnvironment: (id: string) => void;
   onBack: () => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
-
   const selectedDetail: RuntimeEnvironmentDetail | null =
     selectedEnvironmentId && runtimeEnvironmentDetails[selectedEnvironmentId]
       ? runtimeEnvironmentDetails[selectedEnvironmentId]
@@ -104,62 +98,46 @@ function EnvironmentSettings({
   }
 
   // 列表页
-  const filteredEnvironments = runtimeEnvironments.filter(
-    (env) =>
-      env.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      env.purpose.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
   return (
-    <>
-      <label className="settings-search">
-        <Search size={17} />
-        <input
-          aria-label="搜索环境"
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索环境名称 / 用途..."
-          type="search"
-          value={searchQuery}
-        />
-      </label>
-
-      {filteredEnvironments.length === 0 ? (
-        <div className="settings-empty">
-          <p>未找到匹配的环境</p>
-          <span>尝试其他关键词</span>
-        </div>
-      ) : (
-        <div className="environment-list" aria-label="运行环境列表">
-          {filteredEnvironments.map((env) => (
-            <article
-              className="environment-card"
-              key={env.id}
-              onClick={() => onSelectEnvironment(env.id)}
-            >
-              <div className="environment-card__icon" aria-hidden="true">
-                <span />
-              </div>
-              <div className="environment-card__body">
-                <div className="environment-card__heading">
-                  <h2>{env.name}</h2>
-                  <StatusBadge label={env.status} tone={env.tone} />
-                  {env.isDefault ? <span className="default-pill">默认</span> : null}
-                </div>
-                <p>{env.purpose}</p>
-                <div className="environment-card__meta">
-                  <span>{env.python}</span>
-                  <span>{env.framework}</span>
-                  <span>{env.cuda}</span>
-                </div>
-              </div>
-              <div className="environment-card__side">
-                <time>{env.updatedAt}</time>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </>
+    <div className="environment-list" aria-label="运行环境列表">
+      {runtimeEnvironments.map((env) => (
+        <article
+          className="environment-card"
+          key={env.id}
+          onClick={() => onSelectEnvironment(env.id)}
+        >
+          <div className="environment-card__icon" aria-hidden="true">
+            <span />
+          </div>
+          <div className="environment-card__body">
+            <div className="environment-card__heading">
+              <h2>{env.name}</h2>
+              <StatusBadge label={env.status} tone={env.tone} />
+              {env.isDefault ? <span className="default-pill">默认</span> : null}
+            </div>
+            <p>{env.purpose}</p>
+            <div className="environment-card__meta">
+              <span>{env.python}</span>
+              <span>{env.framework}</span>
+              <span>{env.cuda}</span>
+            </div>
+          </div>
+          <div className="environment-card__side">
+            <time>{env.updatedAt}</time>
+            <div className="environment-card__actions">
+              <button type="button" onClick={(e) => { e.stopPropagation(); }}>
+                <RotateCw size={13} />
+                检测环境
+              </button>
+              <button className="environment-card__danger" type="button" onClick={(e) => { e.stopPropagation(); }}>
+                <Trash2 size={13} />
+                删除
+              </button>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -285,8 +263,6 @@ function AssistantModelSettings({
   onSelectModel: (id: string) => void;
   onBack: () => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
-
   const selectedDetail: AssistantModelDetail | null =
     selectedModelId && assistantModelDetails[selectedModelId]
       ? assistantModelDetails[selectedModelId]
@@ -298,70 +274,44 @@ function AssistantModelSettings({
   }
 
   // 列表页
-  const filteredModels = assistantModels.filter(
-    (model) =>
-      model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.provider.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
   return (
-    <>
-      <label className="settings-search">
-        <Search size={17} />
-        <input
-          aria-label="搜索模型"
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索模型名称或厂商"
-          type="search"
-          value={searchQuery}
-        />
-      </label>
-
-      {filteredModels.length === 0 ? (
-        <div className="settings-empty">
-          <p>未找到匹配的模型</p>
-          <span>尝试其他关键词</span>
-        </div>
-      ) : (
-        <section className="model-management">
-          <div className="settings-section-heading">
-            <h2>模型管理</h2>
-            <p>管理模型来源、连接检测、默认模型和适用场景。</p>
-          </div>
-          <div className="assistant-model-grid" aria-label="AI 助手模型列表">
-            {filteredModels.map((model) => (
-              <article
-                className={`assistant-model-card${
-                  model.isDefault ? " assistant-model-card--selected" : ""
-                }`}
-                key={model.id}
-                onClick={() => onSelectModel(model.id)}
-                style={{ cursor: "pointer" }}
-              >
-                <div className={`assistant-model-card__icon assistant-model-card__icon--${model.variant}`}>
-                  <Bot size={20} />
-                </div>
-                <StatusBadge label={model.status} tone={model.tone} />
-                <h3>{model.name}</h3>
-                <span className="model-provider">{model.provider}</span>
-                <span className="model-context">{model.context}</span>
-                <div className="model-card-actions">
-                  <button type="button">检测模型</button>
-                  <button type="button">
-                    <Star size={15} />
-                    设为默认
-                  </button>
-                  <button type="button">编辑</button>
-                  <button className="model-icon-action" type="button" title="删除">
-                    <X size={15} />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-    </>
+    <section className="model-management">
+      <div className="settings-section-heading">
+        <h2>模型管理</h2>
+        <p>管理模型来源、连接检测、默认模型和适用场景。</p>
+      </div>
+      <div className="assistant-model-grid" aria-label="AI 助手模型列表">
+        {assistantModels.map((model) => (
+          <article
+            className={`assistant-model-card${
+              model.isDefault ? " assistant-model-card--selected" : ""
+            }`}
+            key={model.id}
+            onClick={() => onSelectModel(model.id)}
+            style={{ cursor: "pointer" }}
+          >
+            <div className={`assistant-model-card__icon assistant-model-card__icon--${model.variant}`}>
+              <Bot size={20} />
+            </div>
+            <StatusBadge label={model.status} tone={model.tone} />
+            <h3>{model.name}</h3>
+            <span className="model-provider">{model.provider}</span>
+            <span className="model-context">{model.context}</span>
+            <div className="model-card-actions">
+              <button type="button">检测模型</button>
+              <button type="button">
+                <Star size={15} />
+                设为默认
+              </button>
+              <button type="button">编辑</button>
+              <button className="model-icon-action" type="button" title="删除">
+                <X size={15} />
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

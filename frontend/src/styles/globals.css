@@ -1712,6 +1712,12 @@ body {
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
+.environment-card:hover {
+  background: #fbfdff;
+  border-color: #8fb6ff;
+  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.12), 0 4px 16px rgba(32, 49, 79, 0.06);
+}
+
 .environment-card--selected {
   background: #fbfdff;
   border-color: #8fb6ff;
@@ -1801,8 +1807,12 @@ body {
 }
 
 .environment-card__actions {
-  display: flex;
+  display: none;
   gap: 8px;
+}
+
+.environment-card:hover .environment-card__actions {
+  display: flex;
 }
 
 .environment-card__actions button {

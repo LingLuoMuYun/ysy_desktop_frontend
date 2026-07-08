@@ -17,9 +17,11 @@
 - [x] 实现 `EnvironmentDetail` 组件：头部（返回按钮 + 图标 + 标题 + 状态 + 操作按钮）、基础信息网格、检测结果列表（逐项通过/未通过图标 + 详情）、使用建议。
 - [x] `AssistantModelSettings` 接收 `selectedModelId` / `onSelectModel` / `onBack` props。
 - [x] 实现 `ModelDetail` 组件：头部（返回按钮 + 模型图标 + 标题 + 厂商标签 + 状态 + 默认标签 + 操作按钮）、链接信息卡片（API Base URL / 模型标识 / API Key / 连接状态）、生成参数卡片（上下文长度 / 最大输出 / Temperature / 超时 / 重试 / 默认模型）。
-- [x] 环境和模型列表页添加搜索输入框，支持按名称/用途或厂商实时过滤。
-- [x] 搜索无结果时展示空态（"未找到匹配的环境/模型" + "尝试其他关键词"）。
+- [x] 环境和模型列表页添加搜索输入框，支持按名称/用途或厂商实时过滤。（后续已移除）
+- [x] 搜索无结果时展示空态（"未找到匹配的环境/模型" + "尝试其他关键词"）。（后续已移除）
 - [x] 顶部栏操作按钮移至右侧：`settings-topbar` 使用 `justify-content: space-between`，新增 `settings-topbar__right` 容器。
+- [x] 移除"检测全部环境 / 检测全部模型"按钮，顶部栏右侧仅保留"创建环境 / 添加模型"。
+- [x] 移除环境和 AI 助手列表搜索栏及关联过滤逻辑、空态展示。
 - [x] 环境详情页"检测环境"和"删除"按钮样式优化：primary 蓝色填充 + danger 红色描边。
 - [x] 模型详情页"编辑""删除""连接测试"按钮同样使用 settings-action-button 系列样式。
 - [x] 新增 `.env-detail-page` 详情页整体布局 CSS。
@@ -35,6 +37,7 @@
 - [x] 新增 `.env-detail__suggestion` 使用建议区块样式。
 - [x] 新增 `.settings-empty` 搜索空态样式。
 - [x] 新增 `.settings-action-button--danger` 红色危险按钮样式。
+- [x] 环境卡片悬浮交互：hover 时显示蓝色高亮边框 + 浅蓝背景 + 阴影，右侧浮现"检测环境"和"删除"按钮（stopPropagation 阻止冒泡）。
 - [x] TypeScript 类型检查通过 (`pnpm run typecheck`)。
 - [x] Vite 构建通过 (`pnpm run build`)。
 
