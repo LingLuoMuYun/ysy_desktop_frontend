@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   CheckCircle,
   ChevronDown,
+  ChevronRight,
   Cpu,
   Eye,
   FilePenLine,
@@ -35,6 +36,18 @@ const PLUS_OPTIONS: { key: string; label: string; icon: typeof Paperclip }[] = [
   { key: "skills", label: "Skills", icon: Zap },
 ];
 
+export interface SkillOption {
+  key: string;
+  label: string;
+  color: string;
+}
+
+export const SKILL_OPTIONS: SkillOption[] = [
+  { key: "find-skills", label: "find-skills", color: "#8b5cf6" },
+  { key: "frontend-design", label: "frontend-design", color: "#3b82f6" },
+  { key: "electron-development", label: "electron-development", color: "#10b981" },
+];
+
 const PROJECT_OPTIONS = [
   { key: "none", label: "不关联" },
   { key: "defect", label: "工业缺陷检测" },
@@ -49,6 +62,10 @@ interface PromptToolbarProps {
   plusClassName?: string;
   assistClassName?: string;
   modelClassName?: string;
+  onFilesSelected?: (files: File[]) => void;
+  onAttachmentsSelected?: (attachments: Array<{ name: string; path: string }>) => void;
+  onPlanModeToggle?: () => void;
+  onSkillToggle?: (skill: SkillOption) => void;
 }
 
 // --- 工具栏 ---
@@ -58,43 +75,130 @@ export function PromptToolbar({
   plusClassName,
   assistClassName,
   modelClassName,
+  onFilesSelected,
+  onAttachmentsSelected,
+  onPlanModeToggle,
+  onSkillToggle,
 }: PromptToolbarProps) {
   const { assistMode, setAssistMode, modelOption, setModelOption } = useAssistantPanel();
   const [openMenu, setOpenMenu] = useState<"plus" | "assist" | "model" | null>(null);
+  const [skillsSubOpen, setSkillsSubOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeAssist = ASSIST_OPTIONS.find((o) => o.key === assistMode)!;
   const activeModel = MODEL_OPTIONS.find((o) => o.key === modelOption)!;
 
+  const handlePlusOptionClick = async (key: string) => {
+    if (key === "skills") {
+      setSkillsSubOpen(true);
+      return;
+    }
+
+    setOpenMenu(null);
+    setSkillsSubOpen(false);
+
+    if (key === "upload") {
+      const hasElectronAPI = Boolean(window.ysyDesktop?.selectAttachments);
+      console.debug("[PromptToolbar] 上传附件触发:", { hasElectronAPI, hasOnAttachmentsSelected: Boolean(onAttachmentsSelected) });
+
+      if (onAttachmentsSelected && hasElectronAPI) {
+        console.debug("[PromptToolbar] 使用 Electron 原生对话框");
+        const attachments = await window.ysyDesktop!.selectAttachments!();
+        console.debug("[PromptToolbar] 原生对话框返回:", attachments);
+        if (attachments.length > 0) {
+          onAttachmentsSelected(attachments);
+        }
+        return;
+      }
+
+      if (onFilesSelected) {
+        console.debug("[PromptToolbar] 使用浏览器 fallback <input type=file>");
+        fileInputRef.current?.click();
+      }
+      return;
+    }
+
+    if (key === "plan") {
+      onPlanModeToggle?.();
+      return;
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length > 0) {
+      onFilesSelected?.(files);
+    }
+    event.target.value = "";
+  };
+
   return (
     <div className={className || "prompt-tools"}>
+      <input
+        ref={fileInputRef}
+        className="prompt-file-input"
+        type="file"
+        multiple
+        onChange={handleFileChange}
+      />
+
       {/* +号 */}
       <PortalDropdown
         open={openMenu === "plus"}
-        onClose={() => setOpenMenu(null)}
+        onClose={() => { setOpenMenu(null); setSkillsSubOpen(false); }}
         align="left"
-        menuClassName="prompt-dropdown"
+        menuClassName={`prompt-dropdown${skillsSubOpen ? " prompt-dropdown--skills" : ""}`}
         trigger={
           <button
             className={`round-button${openMenu === "plus" ? " round-button--active" : ""}${plusClassName ? ` ${plusClassName}` : ""}`}
             type="button"
             title="更多选项"
-            onClick={() => setOpenMenu(openMenu === "plus" ? null : "plus")}
+            onClick={() => { setOpenMenu(openMenu === "plus" ? null : "plus"); setSkillsSubOpen(false); }}
           >
             <Plus size={20} />
           </button>
         }
       >
-        {PLUS_OPTIONS.map((opt) => (
-          <button
-            className="prompt-dropdown__item"
-            type="button"
-            key={opt.key}
-            onClick={() => setOpenMenu(null)}
-          >
-            <opt.icon size={15} className="prompt-dropdown__item-icon" />
-            <span>{opt.label}</span>
-          </button>
-        ))}
+        <div className={`prompt-dropdown__columns${skillsSubOpen ? " prompt-dropdown__columns--sub" : ""}`}>
+          <div className="prompt-dropdown__col">
+            {PLUS_OPTIONS.map((opt) => (
+              <button
+                className={`prompt-dropdown__item${skillsSubOpen && opt.key === "skills" ? " prompt-dropdown__item--active" : ""}`}
+                type="button"
+                key={opt.key}
+                onClick={() => handlePlusOptionClick(opt.key)}
+              >
+                <opt.icon size={15} className="prompt-dropdown__item-icon" />
+                <span>{opt.label}</span>
+                {opt.key === "skills" && (
+                  <ChevronRight size={12} className="prompt-dropdown__item-arrow" />
+                )}
+              </button>
+            ))}
+          </div>
+          {skillsSubOpen && (
+            <div className="prompt-dropdown__col prompt-dropdown__col--sub">
+              {SKILL_OPTIONS.map((skill) => (
+                <button
+                  className="prompt-dropdown__item"
+                  type="button"
+                  key={skill.key}
+                  onClick={() => {
+                    onSkillToggle?.(skill);
+                    setOpenMenu(null);
+                    setSkillsSubOpen(false);
+                  }}
+                >
+                  <span
+                    className="prompt-dropdown__skill-dot"
+                    style={{ backgroundColor: skill.color }}
+                  />
+                  <span>{skill.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </PortalDropdown>
 
       {/* 辅助填写 */}

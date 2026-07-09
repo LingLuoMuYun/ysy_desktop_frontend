@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,6 +55,38 @@ function createWindow() {
     void mainWindow.loadFile(getProductionIndexPath());
 }
 void app.whenReady().then(() => {
+    ipcMain.handle("file:select-attachments", async () => {
+        const result = await dialog.showOpenDialog({
+            properties: ["openFile", "multiSelections"],
+        });
+        if (result.canceled) {
+            return [];
+        }
+        return result.filePaths.map((filePath) => ({
+            name: path.basename(filePath),
+            path: filePath,
+        }));
+    });
+    ipcMain.handle("file:open-path", async (_event, filePath) => {
+        if (typeof filePath !== "string" || filePath.trim().length === 0) {
+            throw new Error("无效的文件路径");
+        }
+        // 优先使用 shell.openPath（打开关联应用）
+        const errorMessage = await shell.openPath(filePath);
+        if (!errorMessage) {
+            return; // 成功
+        }
+        // 回退：使用 file:// 协议通过系统默认方式打开
+        console.warn(`[main] shell.openPath 失败 (${errorMessage})，尝试 shell.openExternal 回退:`, filePath);
+        try {
+            const normalized = filePath.replace(/\\/g, "/");
+            const fileUrl = `file:///${encodeURI(normalized)}`;
+            await shell.openExternal(fileUrl);
+        }
+        catch (externalError) {
+            throw new Error(`无法打开文件: ${errorMessage} / ${String(externalError)}`);
+        }
+    });
     createWindow();
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) {

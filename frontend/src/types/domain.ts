@@ -55,12 +55,12 @@ export interface RuntimeEnvironmentSummary {
   name: string;
   status: string;
   tone: StatusTone;
+  environmentSource?: "创建系统环境" | "导入本地环境" | "自定义环境";
   purpose: string;
   python: string;
   framework: string;
   cuda: string;
   updatedAt: string;
-  isDefault: boolean;
 }
 
 /** 环境检测单项结果 */

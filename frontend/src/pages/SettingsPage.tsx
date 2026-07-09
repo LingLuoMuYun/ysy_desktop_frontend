@@ -1,10 +1,12 @@
-import { Activity, Bot, CheckCircle2, FolderOpen, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle } from "lucide-react";
-import { useRef, useState } from "react";
+import { Activity, Bot, CheckCircle2, FolderOpen, Info, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle, Zap } from "lucide-react";
+import { forwardRef, useRef, useState } from "react";
 import { StatusBadge } from "../components/StatusBadge";
-import { assistantModelDetails, assistantModels, runtimeEnvironmentDetails, runtimeEnvironments } from "../mocks/prototypeData";
-import type { AssistantModelDetail, RuntimeEnvironmentDetail } from "../types/domain";
+import { assistantModelDetails, assistantModels, runtimeEnvironments } from "../mocks/prototypeData";
+import type { AssistantModelDetail, RuntimeEnvironmentSummary } from "../types/domain";
 
 type SettingsTab = "environment" | "assistant" | "profile";
+type EnvironmentCreateMode = "system" | "import" | "custom";
+type EnvironmentDeleteScope = "database" | "local-and-database";
 
 const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: "environment", label: "环境" },
@@ -12,99 +14,846 @@ const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: "profile", label: "个人信息" },
 ];
 
+/** 对 API Key 做隐私保护：仅展示 sk- 前缀和末尾 5 个字符，中间用 •••• 替代 */
+function maskApiKey(key: string): string {
+  if (!key || key.length <= 8) return key || "未配置";
+  if (key.startsWith("sk-")) {
+    return `sk-••••${key.slice(-5)}`;
+  }
+  return `${key.slice(0, 3)}••••${key.slice(-5)}`;
+}
+
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("environment");
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [envList, setEnvList] = useState(runtimeEnvironments);
+  const [modelList, setModelList] = useState(assistantModels);
+  const [modelDetails, setModelDetails] = useState(assistantModelDetails);
+  const [deleteTarget, setDeleteTarget] = useState<RuntimeEnvironmentSummary | null>(null);
+  const [modelDeleteTarget, setModelDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isCreateEnvironmentOpen, setIsCreateEnvironmentOpen] = useState(false);
+  const [isAddModelOpen, setIsAddModelOpen] = useState(false);
+  const [toast, setToast] = useState<{ name: string } | null>(null);
 
-  const isViewingDetail =
-    (activeTab === "environment" && selectedEnvironmentId !== null) ||
-    (activeTab === "assistant" && selectedModelId !== null);
+  const handleDeleteConfirm = (_scope: EnvironmentDeleteScope) => {
+    if (!deleteTarget) return;
+    setEnvList((prev) => prev.filter((e) => e.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  const handleModelDeleteConfirm = () => {
+    if (!modelDeleteTarget) return;
+    setModelList((prev) => prev.filter((m) => m.id !== modelDeleteTarget.id));
+    setModelDetails((prev) => {
+      const next = { ...prev };
+      delete next[modelDeleteTarget.id];
+      return next;
+    });
+    if (selectedModelId === modelDeleteTarget.id) {
+      setSelectedModelId(null);
+    }
+    setModelDeleteTarget(null);
+  };
 
   return (
-    <section className={`settings-page${isViewingDetail ? " settings-page--detail" : ""}`}>
-      {!isViewingDetail ? (
-        <header className="settings-topbar">
-          <div className="settings-topbar__left">
-            <div className="settings-tabs">
-              {tabs.map((tab) => (
-                <button
-                  className={activeTab === tab.key ? "is-active" : ""}
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {activeTab !== "profile" ? (
-            <div className="settings-topbar__right">
-              <button className="settings-action-button settings-action-button--primary" type="button">
-                <Plus size={15} />
-                {activeTab === "assistant" ? "添加模型" : "创建环境"}
+    <section className="settings-page">
+      <header className="settings-topbar">
+        <div className="settings-topbar__left">
+          <div className="settings-tabs">
+            {tabs.map((tab) => (
+              <button
+                className={activeTab === tab.key ? "is-active" : ""}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                type="button"
+              >
+                {tab.label}
               </button>
-            </div>
-          ) : null}
-        </header>
-      ) : null}
+            ))}
+          </div>
+        </div>
+        {activeTab !== "profile" ? (
+          <div className="settings-topbar__right">
+            <button
+              className="settings-action-button settings-action-button--primary"
+              onClick={() => {
+                if (activeTab === "environment") {
+                  setIsCreateEnvironmentOpen(true);
+                } else if (activeTab === "assistant") {
+                  setIsAddModelOpen(true);
+                }
+              }}
+              type="button"
+            >
+              <Plus size={15} />
+              {activeTab === "assistant" ? "添加模型" : "创建环境"}
+            </button>
+          </div>
+        ) : null}
+      </header>
 
       <div className="settings-content">
+        {toast ? (
+          <div className="settings-toast">
+            <div className="settings-toast__content">
+              <XCircle size={15} />
+              <span>检测失败：{toast.name}</span>
+            </div>
+            <button
+              className="settings-toast__close"
+              onClick={() => setToast(null)}
+              type="button"
+              title="关闭"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : null}
+
         <div className="settings-main">
           {activeTab === "environment" ? (
             <EnvironmentSettings
-              selectedEnvironmentId={selectedEnvironmentId}
-              onSelectEnvironment={setSelectedEnvironmentId}
-              onBack={() => setSelectedEnvironmentId(null)}
+              environments={envList}
+              onDelete={setDeleteTarget}
+              onDetect={(name) => setToast({ name })}
             />
           ) : null}
           {activeTab === "assistant" ? (
             <AssistantModelSettings
+              models={modelList}
+              modelDetails={modelDetails}
               selectedModelId={selectedModelId}
               onSelectModel={setSelectedModelId}
               onBack={() => setSelectedModelId(null)}
+              onSetDefault={(modelId) => {
+                setModelList((prev) => prev.map((model) => ({ ...model, isDefault: model.id === modelId })));
+                setModelDetails((prev) =>
+                  Object.fromEntries(
+                    Object.entries(prev).map(([id, detail]) => [id, { ...detail, isDefault: id === modelId }]),
+                  ) as typeof assistantModelDetails,
+                );
+              }}
+              onUpdateModel={(updated) => {
+                setModelList((prev) =>
+                  prev.map((model) =>
+                    model.id === updated.id
+                      ? {
+                          ...model,
+                          name: updated.name,
+                          provider: updated.provider,
+                          context: updated.context,
+                          status: updated.status,
+                          tone: updated.tone,
+                          isDefault: updated.isDefault,
+                        }
+                      : model,
+                  ),
+                );
+                setModelDetails((prev) => ({ ...prev, [updated.id]: updated }));
+              }}
+              onDeleteModel={(id, name) => setModelDeleteTarget({ id, name })}
+              onTestModel={(modelName) => setToast({ name: modelName })}
+              isAddModelOpen={isAddModelOpen}
+              onCloseAddModel={() => setIsAddModelOpen(false)}
+              onAddModel={(newModel) => {
+                setModelList((prev) => [
+                  ...prev,
+                  {
+                    id: newModel.id,
+                    name: newModel.name,
+                    status: newModel.status,
+                    tone: newModel.tone,
+                    provider: newModel.provider,
+                    context: newModel.context,
+                    isDefault: newModel.isDefault,
+                    variant: newModel.variant,
+                  },
+                ]);
+                setModelDetails((prev) => ({ ...prev, [newModel.id]: newModel }));
+                setIsAddModelOpen(false);
+              }}
             />
           ) : null}
           {activeTab === "profile" ? <ProfileSettings /> : null}
         </div>
       </div>
+
+      {deleteTarget && (
+        <EnvironmentDeleteDialog
+          environment={deleteTarget}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
+
+      {modelDeleteTarget && (
+        <ConfirmDialog
+          envName={modelDeleteTarget.name}
+          onCancel={() => setModelDeleteTarget(null)}
+          onConfirm={handleModelDeleteConfirm}
+          title="确认删除模型"
+          resourceType="模型"
+        />
+      )}
+
+      {isCreateEnvironmentOpen ? (
+        <CreateEnvironmentDialog
+          onClose={() => setIsCreateEnvironmentOpen(false)}
+          onCreated={(newEnv) => {
+            setEnvList((prev) => [newEnv, ...prev]);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
-function EnvironmentSettings({
-  selectedEnvironmentId,
-  onSelectEnvironment,
-  onBack,
-}: {
-  selectedEnvironmentId: string | null;
-  onSelectEnvironment: (id: string) => void;
-  onBack: () => void;
-}) {
-  const selectedDetail: RuntimeEnvironmentDetail | null =
-    selectedEnvironmentId && runtimeEnvironmentDetails[selectedEnvironmentId]
-      ? runtimeEnvironmentDetails[selectedEnvironmentId]
-      : null;
+const ENV_PURPOSE_OPTIONS = ["训练", "部署服务", "LLM微调", "Embedding微调", "rerank微调", "大模型推理"];
+const ENV_TYPE_OPTIONS = ["conda", "venv", "系统python", "docker镜像"];
+const ENV_MANAGER_OPTIONS = ["conda+pip", "uv", "pip", "mamba"];
 
-  // 详情页
-  if (selectedDetail) {
+interface CreateEnvironmentDialogProps {
+  onClose: () => void;
+  onCreated: (env: RuntimeEnvironmentSummary) => void;
+}
+
+function CreateEnvironmentDialog({ onClose, onCreated }: CreateEnvironmentDialogProps) {
+  const [mode, setMode] = useState<EnvironmentCreateMode>("system");
+
+  // ---- shared form state ----
+  const [envName, setEnvName] = useState("PyTorch 通用训练环境");
+  const [envPurpose, setEnvPurpose] = useState("训练");
+  const [envType, setEnvType] = useState("conda");
+  const [envManager, setEnvManager] = useState("conda+pip");
+  const [pythonVersion, setPythonVersion] = useState("3.10");
+  const [envPath, setEnvPath] = useState("D:/envs/pytorch-general");
+  const [pythonInterpreterPath, setPythonInterpreterPath] = useState("D:/envs/pytorch-general/python.exe");
+  const [condaEnvName, setCondaEnvName] = useState("pytorch-general");
+  const [packageSource, setPackageSource] = useState("清华 PyPI / pytorch cuda channel");
+  const [projectDir, setProjectDir] = useState("D:/workspace/defect-detection");
+  const [dependencyFile, setDependencyFile] = useState("D:/workspace/defect-detection/requirements.txt");
+  const [autoDetect, setAutoDetect] = useState(true);
+
+  // ---- template selection (system mode) ----
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set(["dl:目标检测"]));
+
+  // ---- confirmation & success flow ----
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const createTabs: Array<{ key: EnvironmentCreateMode; label: string }> = [
+    { key: "system", label: "创建系统环境" },
+    { key: "import", label: "导入本地环境" },
+    { key: "custom", label: "自定义环境" },
+  ];
+
+  const actionLabel =
+    mode === "system" ? "创建环境" : mode === "import" ? "导入环境" : "生成计划";
+
+  const handleAction = () => {
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    const newEnv: RuntimeEnvironmentSummary = {
+      id: `env-${Date.now()}`,
+      name: envName,
+      status: autoDetect ? "检测中" : "未检测",
+      tone: autoDetect ? "info" : "neutral",
+      environmentSource:
+        mode === "system" ? "创建系统环境" : mode === "import" ? "导入本地环境" : "自定义环境",
+      purpose: envPurpose,
+      python: `Python ${pythonVersion}`,
+      framework: mode === "system" ? "PyTorch 2.4 / Ultralytics" : "待检测",
+      cuda: "待检测",
+      updatedAt: `今天 ${time}`,
+    };
+
+    onCreated(newEnv);
+    setShowConfirm(false);
+    setShowSuccess(true);
+    setTimeout(() => {
+      onClose();
+    }, 1800);
+  };
+
+  const handleBackFromConfirm = () => {
+    setShowConfirm(false);
+  };
+
+  // ---- file/folder picker refs ----
+  const envPathInputRef = useRef<HTMLInputElement>(null);
+  const interpreterPathInputRef = useRef<HTMLInputElement>(null);
+  const dependencyFileInputRef = useRef<HTMLInputElement>(null);
+  const projectDirInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFolderPick = (
+    ref: React.RefObject<HTMLInputElement | null>,
+    setter: (v: string) => void,
+  ) => {
+    ref.current?.click();
+  };
+
+  const handleFilePick = (
+    ref: React.RefObject<HTMLInputElement | null>,
+    setter: (v: string) => void,
+  ) => {
+    ref.current?.click();
+  };
+
+  const makeFolderChangeHandler = (setter: (v: string) => void) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const electronPath = file ? (file as File & { path?: string }).path : "";
+      const path = electronPath || (file ? file.webkitRelativePath.split("/")[0] : "");
+      if (path) setter(path);
+    };
+
+  const makeFileChangeHandler = (setter: (v: string) => void) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const electronPath = file ? (file as File & { path?: string }).path : "";
+      const path = electronPath || file?.name || "";
+      if (path) setter(path);
+    };
+
+  const toggleTemplate = (item: string) => {
+    setSelectedTemplates((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) {
+        next.delete(item);
+      } else {
+        next.add(item);
+      }
+      return next;
+    });
+  };
+
+  const toggleTemplateGroup = (items: string[]) => {
+    setSelectedTemplates((prev) => {
+      const allSelected = items.every((i) => prev.has(i));
+      const next = new Set(prev);
+      if (allSelected) {
+        items.forEach((i) => next.delete(i));
+      } else {
+        items.forEach((i) => next.add(i));
+      }
+      return next;
+    });
+  };
+
+  // ---- render ----
+
+  if (showSuccess) {
     return (
-      <EnvironmentDetail
-        detail={selectedDetail}
-        onBack={onBack}
-      />
+      <div className="env-create-overlay" onClick={onClose}>
+        <section
+          aria-modal="true"
+          className="env-create-dialog env-create-dialog--success"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+        >
+          <div className="env-create-success">
+            <CheckCircle2 size={48} className="env-create-success__icon" />
+            <h3>{envName} 已加入环境列表</h3>
+            <p>正在进入检测流程…</p>
+          </div>
+        </section>
+      </div>
     );
   }
 
-  // 列表页
+  if (showConfirm) {
+    return (
+      <div className="env-create-overlay" onClick={handleBackFromConfirm}>
+        <section
+          aria-modal="true"
+          className="env-create-dialog env-create-dialog--confirm"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+        >
+          <header className="env-create-dialog__header">
+            <h2 id="env-create-title">确认创建环境</h2>
+            <button className="env-create-dialog__close" onClick={handleBackFromConfirm} title="返回" type="button">
+              <X size={18} />
+            </button>
+          </header>
+
+          <div className="env-create-dialog__body env-create-confirm-body">
+            <p className="confirm-dialog__desc">
+              该操作会改变本机任务、服务或配置状态，需确认后继续。
+            </p>
+            <dl className="confirm-dialog__info">
+              <div className="confirm-dialog__row">
+                <dt>影响对象</dt>
+                <dd>{envName}</dd>
+              </div>
+              <div className="confirm-dialog__row">
+                <dt>是否会修改文件或环境</dt>
+                <dd>确认后会按当前权限执行</dd>
+              </div>
+              <div className="confirm-dialog__row">
+                <dt>资源影响</dt>
+                <dd>可能创建目录并安装 Python、CUDA 或深度学习依赖</dd>
+              </div>
+              <div className="confirm-dialog__row">
+                <dt>是否可撤销</dt>
+                <dd>否</dd>
+              </div>
+            </dl>
+            <p className="confirm-dialog__risk">
+              <strong>AI 风险提示：</strong>请确认目标、资源占用和上下文后再继续。
+            </p>
+          </div>
+
+          <footer className="env-create-dialog__footer">
+            <div />
+            <div className="env-create-dialog__actions">
+              <button className="settings-action-button" onClick={handleBackFromConfirm} type="button">
+                返回修改
+              </button>
+              <button className="settings-action-button settings-action-button--primary" onClick={handleConfirm} type="button">
+                确认创建环境
+              </button>
+            </div>
+          </footer>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="env-create-overlay" onClick={onClose}>
+      <section
+        aria-labelledby="env-create-title"
+        aria-modal="true"
+        className="env-create-dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
+        <header className="env-create-dialog__header">
+          <h2 id="env-create-title">创建环境</h2>
+          <button className="env-create-dialog__close" onClick={onClose} title="关闭" type="button">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="env-create-dialog__body">
+          <nav className="env-create-tabs" aria-label="创建环境方式">
+            {createTabs.map((tab) => (
+              <button
+                className={mode === tab.key ? "is-active" : ""}
+                key={tab.key}
+                onClick={() => setMode(tab.key)}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {mode === "system" ? (
+            <SystemEnvironmentPane
+              selectedTemplates={selectedTemplates}
+              onToggleTemplate={toggleTemplate}
+              onToggleTemplateGroup={toggleTemplateGroup}
+            />
+          ) : null}
+          {mode === "import" ? (
+            <ImportEnvironmentPane
+              envName={envName}
+              onEnvNameChange={setEnvName}
+              envPurpose={envPurpose}
+              onEnvPurposeChange={setEnvPurpose}
+              envType={envType}
+              onEnvTypeChange={setEnvType}
+              envPath={envPath}
+              onEnvPathChange={setEnvPath}
+              pythonInterpreterPath={pythonInterpreterPath}
+              onPythonInterpreterPathChange={setPythonInterpreterPath}
+              condaEnvName={condaEnvName}
+              onCondaEnvNameChange={setCondaEnvName}
+              envPathInputRef={envPathInputRef}
+              interpreterPathInputRef={interpreterPathInputRef}
+              onFolderPick={handleFolderPick}
+              onFolderChange={makeFolderChangeHandler}
+            />
+          ) : null}
+          {mode === "custom" ? (
+            <CustomEnvironmentPane
+              envName={envName}
+              onEnvNameChange={setEnvName}
+              envPurpose={envPurpose}
+              onEnvPurposeChange={setEnvPurpose}
+              envManager={envManager}
+              onEnvManagerChange={setEnvManager}
+              pythonVersion={pythonVersion}
+              onPythonVersionChange={setPythonVersion}
+              envPath={envPath}
+              onEnvPathChange={setEnvPath}
+              packageSource={packageSource}
+              onPackageSourceChange={setPackageSource}
+              projectDir={projectDir}
+              onProjectDirChange={setProjectDir}
+              dependencyFile={dependencyFile}
+              onDependencyFileChange={setDependencyFile}
+              envPathInputRef={envPathInputRef}
+              dependencyFileInputRef={dependencyFileInputRef}
+              projectDirInputRef={projectDirInputRef}
+              onFolderPick={handleFolderPick}
+              onFilePick={handleFilePick}
+              onFolderChange={makeFolderChangeHandler}
+              onFileChange={makeFileChangeHandler}
+            />
+          ) : null}
+        </div>
+
+        <footer className="env-create-dialog__footer">
+          <label className="env-create-auto-check">
+            <input
+              checked={autoDetect}
+              onChange={(e) => setAutoDetect(e.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              创建 / 导入后自动检测
+              <small>检查 Python、框架、CUDA、驱动、磁盘和依赖文件。</small>
+            </span>
+          </label>
+          <div className="env-create-dialog__actions">
+            <button className="settings-action-button" onClick={onClose} type="button">
+              取消
+            </button>
+            <button className="settings-action-button settings-action-button--primary" onClick={handleAction} type="button">
+              {actionLabel}
+            </button>
+          </div>
+        </footer>
+      </section>
+
+      {/* hidden file inputs for path selection */}
+      <HiddenFolderInput ref={envPathInputRef} onChange={makeFolderChangeHandler(setEnvPath)} />
+      <HiddenFolderInput ref={interpreterPathInputRef} onChange={makeFolderChangeHandler(setPythonInterpreterPath)} />
+      <HiddenFileInput ref={dependencyFileInputRef} onChange={makeFileChangeHandler(setDependencyFile)} />
+      <HiddenFolderInput ref={projectDirInputRef} onChange={makeFolderChangeHandler(setProjectDir)} />
+    </div>
+  );
+}
+
+/* ---- hidden file/folder inputs (rendered outside dialog so they work) ---- */
+const HiddenFolderInput = forwardRef<HTMLInputElement, { onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }>(
+  ({ onChange }, ref) => (
+    <input
+      ref={ref}
+      className="profile-folder-input"
+      onChange={onChange}
+      type="file"
+      // @ts-expect-error webkitdirectory is supported by Chromium/Electron.
+      webkitdirectory=""
+    />
+  ),
+);
+HiddenFolderInput.displayName = "HiddenFolderInput";
+
+const HiddenFileInput = forwardRef<HTMLInputElement, { onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }>(
+  ({ onChange }, ref) => (
+    <input
+      ref={ref}
+      className="profile-folder-input"
+      onChange={onChange}
+      type="file"
+    />
+  ),
+);
+HiddenFileInput.displayName = "HiddenFileInput";
+
+/* ---- system environment pane ---- */
+interface SystemEnvironmentPaneProps {
+  selectedTemplates: Set<string>;
+  onToggleTemplate: (item: string) => void;
+  onToggleTemplateGroup: (items: string[]) => void;
+}
+
+function SystemEnvironmentPane({
+  selectedTemplates, onToggleTemplate, onToggleTemplateGroup,
+}: SystemEnvironmentPaneProps) {
+  return (
+    <div className="env-create-pane">
+      <p className="env-create-description">
+        系统环境会基于预置模板创建，适合 PyTorch、YOLO、大模型推理等标准任务。
+      </p>
+      <div className="env-template-grid" aria-label="系统环境模板">
+        <TemplateGroup
+          groupKey="dl"
+          title="深度学习"
+          items={["目标检测", "图像分类", "语义检测"]}
+          selectedTemplates={selectedTemplates}
+          onToggle={onToggleTemplate}
+          onToggleGroup={onToggleTemplateGroup}
+        />
+        <TemplateGroup
+          groupKey="llm-train"
+          title="大模型训练"
+          items={["LLM", "Embedding", "Rerank"]}
+          selectedTemplates={selectedTemplates}
+          onToggle={onToggleTemplate}
+          onToggleGroup={onToggleTemplateGroup}
+        />
+        <TemplateGroup
+          groupKey="llm-infer"
+          title="大模型推理"
+          items={["LLM", "Embedding", "Rerank"]}
+          selectedTemplates={selectedTemplates}
+          onToggle={onToggleTemplate}
+          onToggleGroup={onToggleTemplateGroup}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TemplateGroup({
+  groupKey,
+  title,
+  items,
+  selectedTemplates,
+  onToggle,
+  onToggleGroup,
+}: {
+  groupKey: string;
+  title: string;
+  items: string[];
+  selectedTemplates: Set<string>;
+  onToggle: (item: string) => void;
+  onToggleGroup: (items: string[]) => void;
+}) {
+  const keys = items.map((item) => `${groupKey}:${item}`);
+  const checkedCount = keys.filter((k) => selectedTemplates.has(k)).length;
+  const allChecked = checkedCount === items.length;
+  const someChecked = checkedCount > 0 && checkedCount < items.length;
+
+  return (
+    <article className="env-template-card">
+      <button
+        className="env-template-card__title"
+        onClick={() => onToggleGroup(keys)}
+        type="button"
+      >
+        <CheckboxMark checked={allChecked} mixed={someChecked} />
+        <strong>{title}</strong>
+      </button>
+      <div className="env-template-card__items">
+        {items.map((item, i) => (
+          <button
+            className="env-template-option"
+            key={keys[i]}
+            onClick={() => onToggle(keys[i])}
+            type="button"
+          >
+            <CheckboxMark checked={selectedTemplates.has(keys[i])} />
+            <span>{item}</span>
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CheckboxMark({ checked, mixed = false }: { checked: boolean; mixed?: boolean }) {
+  return (
+    <span className={`env-create-checkbox${checked ? " is-checked" : ""}${mixed ? " is-mixed" : ""}`}>
+      {checked ? "✓" : mixed ? "−" : ""}
+    </span>
+  );
+}
+
+/* ---- import environment pane ---- */
+interface ImportEnvironmentPaneProps {
+  envName: string;
+  onEnvNameChange: (v: string) => void;
+  envPurpose: string;
+  onEnvPurposeChange: (v: string) => void;
+  envType: string;
+  onEnvTypeChange: (v: string) => void;
+  envPath: string;
+  onEnvPathChange: (v: string) => void;
+  pythonInterpreterPath: string;
+  onPythonInterpreterPathChange: (v: string) => void;
+  condaEnvName: string;
+  onCondaEnvNameChange: (v: string) => void;
+  envPathInputRef: React.RefObject<HTMLInputElement | null>;
+  interpreterPathInputRef: React.RefObject<HTMLInputElement | null>;
+  onFolderPick: (ref: React.RefObject<HTMLInputElement | null>, setter: (v: string) => void) => void;
+  onFolderChange: (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function ImportEnvironmentPane({
+  envName, onEnvNameChange,
+  envPurpose, onEnvPurposeChange,
+  envType, onEnvTypeChange,
+  envPath, onEnvPathChange,
+  pythonInterpreterPath, onPythonInterpreterPathChange,
+  condaEnvName, onCondaEnvNameChange,
+  envPathInputRef, interpreterPathInputRef,
+  onFolderPick, onFolderChange,
+}: ImportEnvironmentPaneProps) {
+  return (
+    <div className="env-create-pane">
+      <p className="env-create-description">
+        导入本地环境只登记路径和依赖信息，不复制或修改已有 Python 环境。
+      </p>
+      <div className="env-create-form-grid">
+        <EnvFormField label="环境名称" value={envName} onChange={onEnvNameChange} />
+        <EnvSelectField label="环境用途" value={envPurpose} onChange={onEnvPurposeChange} options={ENV_PURPOSE_OPTIONS} />
+        <EnvSelectField label="环境类型" value={envType} onChange={onEnvTypeChange} options={ENV_TYPE_OPTIONS} />
+        <EnvPathField label="本地环境路径" value={envPath} onChange={onEnvPathChange} onBrowse={() => onFolderPick(envPathInputRef, onEnvPathChange)} />
+        <EnvPathField label="Python 解释器路径" value={pythonInterpreterPath} onChange={onPythonInterpreterPathChange} onBrowse={() => onFolderPick(interpreterPathInputRef, onPythonInterpreterPathChange)} />
+        <EnvFormField label="Conda 环境名" value={condaEnvName} onChange={onCondaEnvNameChange} />
+      </div>
+    </div>
+  );
+}
+
+/* ---- custom environment pane ---- */
+interface CustomEnvironmentPaneProps {
+  envName: string;
+  onEnvNameChange: (v: string) => void;
+  envPurpose: string;
+  onEnvPurposeChange: (v: string) => void;
+  envManager: string;
+  onEnvManagerChange: (v: string) => void;
+  pythonVersion: string;
+  onPythonVersionChange: (v: string) => void;
+  envPath: string;
+  onEnvPathChange: (v: string) => void;
+  packageSource: string;
+  onPackageSourceChange: (v: string) => void;
+  projectDir: string;
+  onProjectDirChange: (v: string) => void;
+  dependencyFile: string;
+  onDependencyFileChange: (v: string) => void;
+  envPathInputRef: React.RefObject<HTMLInputElement | null>;
+  dependencyFileInputRef: React.RefObject<HTMLInputElement | null>;
+  projectDirInputRef: React.RefObject<HTMLInputElement | null>;
+  onFolderPick: (ref: React.RefObject<HTMLInputElement | null>, setter: (v: string) => void) => void;
+  onFilePick: (ref: React.RefObject<HTMLInputElement | null>, setter: (v: string) => void) => void;
+  onFolderChange: (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileChange: (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function CustomEnvironmentPane({
+  envName, onEnvNameChange,
+  envPurpose, onEnvPurposeChange,
+  envManager, onEnvManagerChange,
+  pythonVersion, onPythonVersionChange,
+  envPath, onEnvPathChange,
+  packageSource, onPackageSourceChange,
+  projectDir, onProjectDirChange,
+  dependencyFile, onDependencyFileChange,
+  envPathInputRef, dependencyFileInputRef, projectDirInputRef,
+  onFolderPick, onFilePick,
+}: CustomEnvironmentPaneProps) {
+  return (
+    <div className="env-create-pane">
+      <p className="env-create-description">
+        自定义环境会读取 requirements.txt、environment.yml 或 pyproject.toml，生成环境创建计划。
+      </p>
+      <div className="env-create-form-grid">
+        <EnvFormField label="环境名称" value={envName} onChange={onEnvNameChange} />
+        <EnvSelectField label="环境管理器" value={envManager} onChange={onEnvManagerChange} options={ENV_MANAGER_OPTIONS} />
+        <EnvSelectField label="环境用途" value={envPurpose} onChange={onEnvPurposeChange} options={ENV_PURPOSE_OPTIONS} />
+        <EnvFormField label="Python 版本" value={pythonVersion} onChange={onPythonVersionChange} />
+        <EnvPathField label="环境保存路径" value={envPath} onChange={onEnvPathChange} onBrowse={() => onFolderPick(envPathInputRef, onEnvPathChange)} />
+        <EnvFormField label="包下载源" value={packageSource} onChange={onPackageSourceChange} />
+        <EnvPathField label="项目目录" value={projectDir} onChange={onProjectDirChange} onBrowse={() => onFolderPick(projectDirInputRef, onProjectDirChange)} />
+        <EnvPathField label="依赖文件" value={dependencyFile} onChange={onDependencyFileChange} onBrowse={() => onFilePick(dependencyFileInputRef, onDependencyFileChange)} />
+      </div>
+    </div>
+  );
+}
+
+/* ---- reusable form field components for create dialog ---- */
+function EnvFormField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="env-create-field">
+      <span>{label}</span>
+      <input onChange={(e) => onChange(e.target.value)} title={value} value={value} />
+    </label>
+  );
+}
+
+function EnvSelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="env-create-field">
+      <span>{label}</span>
+      <select
+        className="env-create-select"
+        onChange={(e) => onChange(e.target.value)}
+        value={value}
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EnvPathField({
+  label,
+  value,
+  onChange,
+  onBrowse,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBrowse: () => void;
+}) {
+  return (
+    <label className="env-create-field">
+      <span>{label}</span>
+      <div className="env-create-path-control">
+        <input onChange={(e) => onChange(e.target.value)} title={value} value={value} />
+        <button onClick={onBrowse} title="选择路径" type="button">
+          <FolderOpen size={15} />
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function EnvironmentSettings({
+  environments,
+  onDelete,
+  onDetect,
+}: {
+  environments: typeof runtimeEnvironments;
+  onDelete: (environment: RuntimeEnvironmentSummary) => void;
+  onDetect: (name: string) => void;
+}) {
   return (
     <div className="environment-list" aria-label="运行环境列表">
-      {runtimeEnvironments.map((env) => (
+      {environments.map((env) => (
         <article
           className="environment-card"
           key={env.id}
-          onClick={() => onSelectEnvironment(env.id)}
         >
           <div className="environment-card__icon" aria-hidden="true">
             <span />
@@ -113,7 +862,6 @@ function EnvironmentSettings({
             <div className="environment-card__heading">
               <h2>{env.name}</h2>
               <StatusBadge label={env.status} tone={env.tone} />
-              {env.isDefault ? <span className="default-pill">默认</span> : null}
             </div>
             <p>{env.purpose}</p>
             <div className="environment-card__meta">
@@ -125,11 +873,24 @@ function EnvironmentSettings({
           <div className="environment-card__side">
             <time>{env.updatedAt}</time>
             <div className="environment-card__actions">
-              <button type="button" onClick={(e) => { e.stopPropagation(); }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDetect(env.name);
+                }}
+              >
                 <RotateCw size={13} />
                 检测环境
               </button>
-              <button className="environment-card__danger" type="button" onClick={(e) => { e.stopPropagation(); }}>
+              <button
+                className="environment-card__danger"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(env);
+                }}
+              >
                 <Trash2 size={13} />
                 删除
               </button>
@@ -141,139 +902,39 @@ function EnvironmentSettings({
   );
 }
 
-/** 环境详情页（整页替换列表） */
-function EnvironmentDetail({
-  detail,
-  onBack,
-}: {
-  detail: RuntimeEnvironmentDetail;
-  onBack: () => void;
-}) {
-  return (
-    <div className="env-detail-page">
-      {/* 头部 */}
-      <div className="env-detail__header">
-        <div className="env-detail__header-left">
-          <button className="env-detail__back-btn" onClick={onBack} type="button" title="返回环境列表">
-            <X size={18} />
-          </button>
-          <div className="env-detail__icon" aria-hidden="true">
-            <span />
-          </div>
-          <div className="env-detail__titles">
-            <h2>{detail.name}</h2>
-            <div className="env-detail__badges">
-              <span className="env-detail__purpose-tag">{detail.purpose}</span>
-              <StatusBadge label={detail.status} tone={detail.tone} />
-            </div>
-          </div>
-        </div>
-        <div className="env-detail__header-actions">
-          <button className="settings-action-button settings-action-button--primary" type="button">
-            <RotateCw size={15} />
-            检测环境
-          </button>
-          <button className="settings-action-button settings-action-button--danger" type="button">
-            <Trash2 size={15} />
-            删除
-          </button>
-        </div>
-      </div>
-
-      {/* 主体内容 */}
-      <div className="env-detail__body">
-        {/* 基础信息 */}
-        <section className="env-detail__section">
-          <h3>基础信息</h3>
-          <div className="env-detail__info-grid">
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">环境名称</span>
-              <span className="env-detail__info-value">{detail.name}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">环境用途</span>
-              <span className="env-detail__info-value">{detail.purpose}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">Python 版本</span>
-              <span className="env-detail__info-value">{detail.python}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">框架</span>
-              <span className="env-detail__info-value">{detail.framework}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">CUDA 版本</span>
-              <span className="env-detail__info-value">{detail.cuda}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">最近检测时间</span>
-              <span className="env-detail__info-value">{detail.lastCheckTime}</span>
-            </div>
-            <div className="env-detail__info-item">
-              <span className="env-detail__info-label">最近检测结果</span>
-              <span className={`env-detail__info-value env-detail__info-value--${detail.tone}`}>
-                {detail.lastCheckResult}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* 检测结果 */}
-        <section className="env-detail__section">
-          <h3>检测结果</h3>
-          <div className="env-detail__check-list">
-            {detail.checkItems.map((item) => (
-              <div className="env-detail__check-item" key={item.label}>
-                {item.passed ? (
-                  <CheckCircle2 className="env-detail__check-icon env-detail__check-icon--pass" size={18} />
-                ) : (
-                  <XCircle className="env-detail__check-icon env-detail__check-icon--fail" size={18} />
-                )}
-                <span className="env-detail__check-label">{item.label}</span>
-                <span className={`env-detail__check-status env-detail__check-status--${item.passed ? "pass" : "fail"}`}>
-                  {item.passed ? "通过" : "未通过"}
-                </span>
-                {item.detail ? (
-                  <span className="env-detail__check-detail">{item.detail}</span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 使用建议 */}
-        <section className="env-detail__section">
-          <h3>使用建议</h3>
-          <div className={`env-detail__suggestion env-detail__suggestion--${detail.tone}`}>
-            <p>{detail.suggestion}</p>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
 function AssistantModelSettings({
+  models,
+  modelDetails,
   selectedModelId,
   onSelectModel,
   onBack,
+  onSetDefault,
+  onUpdateModel,
+  onDeleteModel,
+  onTestModel,
+  isAddModelOpen,
+  onCloseAddModel,
+  onAddModel,
 }: {
+  models: typeof assistantModels;
+  modelDetails: typeof assistantModelDetails;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   onBack: () => void;
+  onSetDefault: (id: string) => void;
+  onUpdateModel: (model: AssistantModelDetail) => void;
+  onDeleteModel: (id: string, name: string) => void;
+  onTestModel: (modelName: string) => void;
+  isAddModelOpen: boolean;
+  onCloseAddModel: () => void;
+  onAddModel: (model: AssistantModelDetail) => void;
 }) {
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const selectedDetail: AssistantModelDetail | null =
-    selectedModelId && assistantModelDetails[selectedModelId]
-      ? assistantModelDetails[selectedModelId]
+    selectedModelId && modelDetails[selectedModelId]
+      ? modelDetails[selectedModelId]
       : null;
 
-  // 详情页
-  if (selectedDetail) {
-    return <ModelDetail detail={selectedDetail} onBack={onBack} />;
-  }
-
-  // 列表页
   return (
     <section className="model-management">
       <div className="settings-section-heading">
@@ -281,29 +942,62 @@ function AssistantModelSettings({
         <p>管理模型来源、连接检测、默认模型和适用场景。</p>
       </div>
       <div className="assistant-model-grid" aria-label="AI 助手模型列表">
-        {assistantModels.map((model) => (
+        {models.map((model) => (
           <article
             className={`assistant-model-card${
               model.isDefault ? " assistant-model-card--selected" : ""
             }`}
             key={model.id}
             onClick={() => onSelectModel(model.id)}
-            style={{ cursor: "pointer" }}
           >
-            <div className={`assistant-model-card__icon assistant-model-card__icon--${model.variant}`}>
-              <Bot size={20} />
+            <div className="assistant-model-card__header">
+              <div className={`assistant-model-card__icon assistant-model-card__icon--${model.variant}`}>
+                <Bot size={20} />
+              </div>
+              <div className="assistant-model-card__badges">
+                <StatusBadge label={model.status} tone={model.tone} />
+                {model.isDefault ? <span className="default-pill">默认</span> : null}
+              </div>
             </div>
-            <StatusBadge label={model.status} tone={model.tone} />
-            <h3>{model.name}</h3>
-            <span className="model-provider">{model.provider}</span>
-            <span className="model-context">{model.context}</span>
+            <div className="assistant-model-card__body">
+              <h3>{model.name}</h3>
+              <div className="model-meta-row">
+                <span className="model-provider">{model.provider}</span>
+                <span className="model-context">{model.context}</span>
+              </div>
+            </div>
             <div className="model-card-actions">
-              <button type="button">检测模型</button>
-              <button type="button">
-                <Star size={15} />
-                设为默认
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTestModel(model.name);
+                }}
+              >
+                检测模型
               </button>
-              <button type="button">编辑</button>
+              <button
+                className={model.isDefault ? "is-current-default" : ""}
+                disabled={model.isDefault}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSetDefault(model.id);
+                }}
+              >
+                <Star size={15} />
+                {model.isDefault ? "默认模型" : "设为默认"}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingModelId(model.id);
+                }}
+              >
+                <Pencil size={14} />
+                编辑
+              </button>
               <button className="model-icon-action" type="button" title="删除">
                 <X size={15} />
               </button>
@@ -311,132 +1005,673 @@ function AssistantModelSettings({
           </article>
         ))}
       </div>
+
+      {/* 模型详情弹窗 */}
+      {selectedDetail ? (
+        <ModelDetail
+          detail={selectedDetail}
+          onBack={onBack}
+          onEdit={() => setEditingModelId(selectedDetail.id)}
+          onDelete={() => onDeleteModel(selectedDetail.id, selectedDetail.name)}
+          onTest={() => {
+            onBack();
+            onTestModel(selectedDetail.name);
+          }}
+        />
+      ) : null}
+
+      {/* 编辑弹窗 */}
+      {editingModelId && modelDetails[editingModelId] ? (
+        <ModelEditDialog
+          detail={modelDetails[editingModelId]}
+          onClose={() => setEditingModelId(null)}
+          onSave={(updated) => {
+            onUpdateModel(updated);
+            setEditingModelId(null);
+          }}
+          onTest={() => {
+            setEditingModelId(null);
+            onTestModel(modelDetails[editingModelId].name);
+          }}
+        />
+      ) : null}
+
+      {/* 添加模型弹窗 */}
+      {isAddModelOpen ? (
+        <ModelAddDialog
+          onClose={onCloseAddModel}
+          onSave={onAddModel}
+          onTest={() => {
+            onCloseAddModel();
+            onTestModel("新模型");
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
-/** AI 助手模型详情页（整页替换列表） */
-function ModelDetail({
-  detail,
-  onBack,
+/** 添加模型弹窗 */
+function ModelAddDialog({
+  onClose,
+  onSave,
+  onTest,
 }: {
-  detail: AssistantModelDetail;
-  onBack: () => void;
+  onClose: () => void;
+  onSave: (model: AssistantModelDetail) => void;
+  onTest: () => void;
 }) {
+  const id = `assistant-custom-${Date.now()}`;
+  const [form, setForm] = useState({
+    name: "qwen-plus",
+    provider: "阿里云百炼",
+    apiBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    modelId: "qwen-plus",
+    apiKey: "",
+    context: "上下文 128K",
+    maxOutputLength: "4,096",
+    temperature: "0.7",
+    timeout: "60s",
+    retryCount: "1",
+  });
+
+  const updateForm = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleSave = () => {
+    const name = form.name.trim();
+    if (!name) return;
+
+    const provider = form.provider.trim() || "自定义";
+    const contextValue = form.context.trim();
+    const timeoutValue = form.timeout.trim();
+    const apiKey = form.apiKey.trim();
+
+    onSave({
+      id,
+      name,
+      status: "待检测",
+      tone: "warning",
+      provider,
+      context: contextValue.startsWith("上下文") ? contextValue : `上下文 ${contextValue || "128K"}`,
+      isDefault: false,
+      variant: "blue",
+      apiBaseUrl: form.apiBaseUrl.trim(),
+      modelId: form.modelId.trim(),
+      apiKey,
+      apiKeyConfigured: apiKey.length > 0,
+      connectionStatus: "待检测",
+      maxOutputLength: form.maxOutputLength.trim() || "4,096",
+      temperature: form.temperature.trim() || "0.7",
+      timeout: timeoutValue.endsWith("s") ? timeoutValue : `${timeoutValue || "60"}s`,
+      retryCount: Number.parseInt(form.retryCount, 10) || 1,
+    });
+  };
+
   return (
-    <div className="env-detail-page">
-      {/* 头部 */}
-      <div className="env-detail__header">
-        <div className="env-detail__header-left">
-          <button className="env-detail__back-btn" onClick={onBack} type="button" title="返回模型列表">
+    <div className="model-edit-overlay" onClick={onClose}>
+      <section
+        aria-labelledby="model-add-title"
+        aria-modal="true"
+        className="model-edit-dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
+        <header className="model-edit-dialog__header">
+          <h2 id="model-add-title">添加模型</h2>
+          <button className="model-edit-dialog__close" onClick={onClose} title="关闭" type="button">
             <X size={18} />
           </button>
-          <div className={`env-detail__model-icon env-detail__model-icon--${detail.variant}`}>
-            <Bot size={22} />
-          </div>
-          <div className="env-detail__titles">
-            <h2>{detail.name}</h2>
-            <div className="env-detail__badges">
-              <span className="env-detail__purpose-tag">{detail.provider}</span>
-              <StatusBadge label={detail.status} tone={detail.tone} />
-              {detail.isDefault ? <span className="default-pill">默认</span> : null}
+        </header>
+
+        <div className="model-edit-dialog__content">
+          <section className="model-edit-section">
+            <h3>
+              <Info size={15} />
+              模型信息
+            </h3>
+            <div className="model-edit-grid">
+              <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
+              <ModelEditField label="模型厂商" value={form.provider} onChange={(value) => updateForm("provider", value)} />
+              <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
+              <ModelEditField label="模型标识" value={form.modelId} onChange={(value) => updateForm("modelId", value)} />
+              <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
             </div>
-          </div>
+          </section>
+
+          <section className="model-edit-section">
+            <h3>
+              <Zap size={15} />
+              生成参数
+            </h3>
+            <div className="model-edit-grid">
+              <ModelEditField label="上下文长度" value={form.context} onChange={(value) => updateForm("context", value)} />
+              <ModelEditField label="最大输出长度" value={form.maxOutputLength} onChange={(value) => updateForm("maxOutputLength", value)} />
+              <ModelEditField label="Temperature" value={form.temperature} onChange={(value) => updateForm("temperature", value)} />
+              <ModelEditField label="超时时间" value={form.timeout} onChange={(value) => updateForm("timeout", value)} />
+              <ModelEditField label="重试次数" value={form.retryCount} onChange={(value) => updateForm("retryCount", value)} />
+            </div>
+          </section>
         </div>
-        <div className="env-detail__header-actions">
-          <button className="settings-action-button" type="button">
-            <Pencil size={15} />
-            编辑
-          </button>
-          <button className="settings-action-button settings-action-button--danger" type="button">
-            <Trash2 size={15} />
-            删除
-          </button>
-          <button className="settings-action-button settings-action-button--primary" type="button">
+
+        <footer className="model-edit-dialog__footer">
+          <button className="settings-action-button" onClick={onTest} type="button">
             <Activity size={15} />
             连接测试
           </button>
-        </div>
-      </div>
+          <div className="model-edit-dialog__actions">
+            <button className="settings-action-button" onClick={onClose} type="button">
+              取消
+            </button>
+            <button className="settings-action-button settings-action-button--primary" onClick={handleSave} type="button">
+              <Save size={15} />
+              保存
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+}
 
-      {/* 主体内容 */}
-      <div className="env-detail__body">
-        {/* 链接信息 */}
-        <section className="env-detail__section">
-          <h3>链接信息</h3>
-          <div className="env-detail__info-card">
-            <div className="env-detail__info-grid">
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">模型名称</span>
-                <span className="env-detail__info-value">{detail.name}</span>
+/** AI 助手模型详情弹窗 */
+function ModelDetail({
+  detail,
+  onBack,
+  onEdit,
+  onDelete,
+  onTest,
+}: {
+  detail: AssistantModelDetail;
+  onBack: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onTest: () => void;
+}) {
+  return (
+    <div className="model-edit-overlay" onClick={onBack}>
+      <section
+        aria-labelledby="model-detail-title"
+        aria-modal="true"
+        className="model-edit-dialog model-detail-dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
+        <header className="model-edit-dialog__header">
+          <h2 id="model-detail-title">模型详情</h2>
+          <button className="model-edit-dialog__close" onClick={onBack} title="关闭" type="button">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="model-edit-dialog__content">
+          {/* 模型摘要 */}
+          <div className="model-edit-summary">
+            <div className={`model-edit-summary__icon assistant-model-card__icon--${detail.variant}`}>
+              <Bot size={20} />
+            </div>
+            <div className="model-edit-summary__text">
+              <div className="model-edit-summary__title-row">
+                <h3>{detail.name}</h3>
+                <StatusBadge label={detail.status} tone={detail.tone} />
+                {detail.isDefault ? <span className="default-pill">默认</span> : null}
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">模型厂商</span>
-                <span className="env-detail__info-value">{detail.provider}</span>
+              <p>{detail.provider}</p>
+            </div>
+          </div>
+
+          {/* 链接信息 */}
+          <section className="model-edit-section">
+            <h3>
+              <Info size={15} />
+              链接信息
+            </h3>
+            <div className="model-edit-grid">
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">模型名称</span>
+                <span className="model-detail-info-value">{detail.name}</span>
               </div>
-              <div className="env-detail__info-item env-detail__info-item--full">
-                <span className="env-detail__info-label">API Base URL</span>
-                <span className="env-detail__info-value env-detail__info-value--mono">{detail.apiBaseUrl}</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">模型厂商</span>
+                <span className="model-detail-info-value">{detail.provider}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">模型标识</span>
-                <span className="env-detail__info-value env-detail__info-value--mono">{detail.modelId}</span>
+              <div className="model-detail-info-item model-detail-info-item--full">
+                <span className="model-detail-info-label">API Base URL</span>
+                <span className="model-detail-info-value model-detail-info-value--mono">{detail.apiBaseUrl}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">API Key</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">模型标识</span>
+                <span className="model-detail-info-value model-detail-info-value--mono">{detail.modelId}</span>
+              </div>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">API Key</span>
                 {detail.apiKeyConfigured ? (
-                  <span className="env-detail__info-value env-detail__info-value--mono env-detail__api-key">
-                    {detail.apiKey}
+                  <span className="model-detail-info-value model-detail-info-value--mono model-detail-api-key">
+                    {maskApiKey(detail.apiKey)}
                   </span>
                 ) : (
-                  <span className="env-detail__info-value env-detail__info-value--warning">未配置</span>
+                  <span className="model-detail-info-value model-detail-info-value--warning">未配置</span>
                 )}
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">连接状态</span>
-                <span className={`env-detail__info-value env-detail__info-value--${detail.tone}`}>
-                  <span className={`env-detail__status-dot env-detail__status-dot--${detail.tone}`} />
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">连接状态</span>
+                <span className={`model-detail-info-value model-detail-info-value--${detail.tone}`}>
+                  <span className={`model-detail-status-dot model-detail-status-dot--${detail.tone}`} />
                   {detail.connectionStatus}
                 </span>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* 生成参数 */}
-        <section className="env-detail__section">
-          <h3>生成参数</h3>
-          <div className="env-detail__info-card">
-            <div className="env-detail__info-grid">
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">上下文长度</span>
-                <span className="env-detail__info-value">{detail.context}</span>
+          {/* 生成参数 */}
+          <section className="model-edit-section">
+            <h3>
+              <Zap size={15} />
+              生成参数
+            </h3>
+            <div className="model-edit-grid">
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">上下文长度</span>
+                <span className="model-detail-info-value">{detail.context}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">最大输出长度</span>
-                <span className="env-detail__info-value">{detail.maxOutputLength}</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">最大输出长度</span>
+                <span className="model-detail-info-value">{detail.maxOutputLength}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">Temperature</span>
-                <span className="env-detail__info-value">{detail.temperature}</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">Temperature</span>
+                <span className="model-detail-info-value">{detail.temperature}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">超时时间</span>
-                <span className="env-detail__info-value">{detail.timeout}</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">超时时间</span>
+                <span className="model-detail-info-value">{detail.timeout}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">重试次数</span>
-                <span className="env-detail__info-value">{detail.retryCount}</span>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">重试次数</span>
+                <span className="model-detail-info-value">{detail.retryCount}</span>
               </div>
-              <div className="env-detail__info-item">
-                <span className="env-detail__info-label">默认模型</span>
-                <span className={`env-detail__info-value env-detail__bool-pill${detail.isDefault ? " env-detail__bool-pill--true" : ""}`}>
+              <div className="model-detail-info-item">
+                <span className="model-detail-info-label">默认模型</span>
+                <span className={`model-detail-bool-pill${detail.isDefault ? " model-detail-bool-pill--true" : ""}`}>
                   {detail.isDefault ? "是" : "否"}
                 </span>
               </div>
             </div>
+          </section>
+        </div>
+
+        <footer className="model-edit-dialog__footer">
+          <button className="settings-action-button" onClick={onTest} type="button">
+            <Activity size={15} />
+            连接测试
+          </button>
+          <div className="model-edit-dialog__actions">
+            <button className="settings-action-button settings-action-button--danger" onClick={onDelete} type="button">
+              <Trash2 size={15} />
+              删除
+            </button>
+            <button className="settings-action-button" onClick={onEdit} type="button">
+              <Pencil size={15} />
+              编辑
+            </button>
           </div>
-        </section>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function ModelEditDialog({
+  detail,
+  onClose,
+  onSave,
+  onTest,
+}: {
+  detail: AssistantModelDetail;
+  onClose: () => void;
+  onSave: (model: AssistantModelDetail) => void;
+  onTest: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: detail.name,
+    provider: detail.provider,
+    apiBaseUrl: detail.apiBaseUrl,
+    modelId: detail.modelId,
+    apiKey: detail.apiKeyConfigured ? detail.apiKey : "",
+    context: detail.context.replace(/^上下文\s*/, ""),
+    maxOutputLength: detail.maxOutputLength.replace(/,/g, ""),
+    temperature: detail.temperature,
+    timeout: detail.timeout.replace(/s$/i, ""),
+    retryCount: String(detail.retryCount),
+  });
+
+  const updateForm = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleSave = () => {
+    const contextValue = form.context.trim();
+    const timeoutValue = form.timeout.trim();
+    onSave({
+      ...detail,
+      name: form.name.trim() || detail.name,
+      provider: form.provider.trim() || detail.provider,
+      apiBaseUrl: form.apiBaseUrl.trim(),
+      modelId: form.modelId.trim(),
+      apiKey: form.apiKey,
+      apiKeyConfigured: form.apiKey.trim().length > 0,
+      context: contextValue.startsWith("上下文") ? contextValue : `上下文 ${contextValue || "128K"}`,
+      maxOutputLength: form.maxOutputLength.trim() || detail.maxOutputLength,
+      temperature: form.temperature.trim() || detail.temperature,
+      timeout: timeoutValue.endsWith("s") ? timeoutValue : `${timeoutValue || "60"}s`,
+      retryCount: Number.parseInt(form.retryCount, 10) || detail.retryCount,
+    });
+  };
+
+  return (
+    <div className="model-edit-overlay" onClick={onClose}>
+      <section
+        aria-labelledby="model-edit-title"
+        aria-modal="true"
+        className="model-edit-dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+      >
+        <header className="model-edit-dialog__header">
+          <h2 id="model-edit-title">模型编辑</h2>
+          <button className="model-edit-dialog__close" onClick={onClose} title="关闭" type="button">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="model-edit-dialog__content">
+          <div className="model-edit-summary">
+            <div className={`model-edit-summary__icon assistant-model-card__icon--${detail.variant}`}>
+              <Bot size={20} />
+            </div>
+            <div className="model-edit-summary__text">
+              <div className="model-edit-summary__title-row">
+                <h3>{form.name || detail.name}</h3>
+                <StatusBadge label={detail.status} tone={detail.tone} />
+              </div>
+              <p>{form.provider || detail.provider}</p>
+            </div>
+          </div>
+
+          <section className="model-edit-section">
+            <h3>
+              <Info size={15} />
+              模型信息
+            </h3>
+            <div className="model-edit-grid">
+              <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
+              <ModelEditField label="模型厂商" value={form.provider} onChange={(value) => updateForm("provider", value)} />
+              <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
+              <ModelEditField label="模型标识" value={form.modelId} onChange={(value) => updateForm("modelId", value)} />
+              <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
+            </div>
+          </section>
+
+          <section className="model-edit-section">
+            <h3>
+              <Zap size={15} />
+              生成参数
+            </h3>
+            <div className="model-edit-grid">
+              <ModelEditField label="上下文长度" value={form.context} onChange={(value) => updateForm("context", value)} />
+              <ModelEditField label="最大输出长度" value={form.maxOutputLength} onChange={(value) => updateForm("maxOutputLength", value)} />
+              <ModelEditField label="Temperature" value={form.temperature} onChange={(value) => updateForm("temperature", value)} />
+              <ModelEditField label="超时时间" value={form.timeout} onChange={(value) => updateForm("timeout", value)} />
+              <ModelEditField label="重试次数" value={form.retryCount} onChange={(value) => updateForm("retryCount", value)} />
+            </div>
+          </section>
+        </div>
+
+        <footer className="model-edit-dialog__footer">
+          <button className="settings-action-button" onClick={onTest} type="button">
+            <Activity size={15} />
+            连接测试
+          </button>
+          <div className="model-edit-dialog__actions">
+            <button className="settings-action-button" onClick={onClose} type="button">
+              取消
+            </button>
+            <button className="settings-action-button settings-action-button--primary" onClick={handleSave} type="button">
+              <Save size={15} />
+              保存
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function ModelEditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "password" | "text";
+  className?: string;
+}) {
+  return (
+    <label className={`model-edit-field${className ? ` ${className}` : ""}`}>
+      <span>{label}</span>
+      <input onChange={(e) => onChange(e.target.value)} title={value} type={type} value={value} />
+    </label>
+  );
+}
+
+function getEnvironmentSource(environment: RuntimeEnvironmentSummary) {
+  if (environment.environmentSource) {
+    return environment.environmentSource;
+  }
+
+  const source = `${environment.id} ${environment.name} ${environment.purpose} ${environment.framework}`.toLowerCase();
+  if (source.includes("import") || source.includes("embedding") || source.includes("rerank")) {
+    return "导入本地环境";
+  }
+  if (source.includes("custom") || source.includes("qlora") || source.includes("peft")) {
+    return "自定义环境";
+  }
+  return "创建系统环境";
+}
+
+function EnvironmentDeleteDialog({
+  environment,
+  onCancel,
+  onConfirm,
+}: {
+  environment: RuntimeEnvironmentSummary;
+  onCancel: () => void;
+  onConfirm: (scope: EnvironmentDeleteScope) => void;
+}) {
+  const environmentSource = getEnvironmentSource(environment);
+  const [deleteScope, setDeleteScope] = useState<EnvironmentDeleteScope>("database");
+  const [showLocalConfirm, setShowLocalConfirm] = useState(false);
+
+  const handlePrimaryConfirm = () => {
+    if (deleteScope === "local-and-database") {
+      setShowLocalConfirm(true);
+      return;
+    }
+    onConfirm(deleteScope);
+  };
+
+  if (showLocalConfirm) {
+    return (
+      <div className="confirm-overlay" onClick={onCancel}>
+        <div className="confirm-dialog confirm-dialog--environment confirm-dialog--local-delete" onClick={(e) => e.stopPropagation()}>
+          <div className="confirm-dialog__header confirm-dialog__header--plain">
+            <h2>确认删除本地环境</h2>
+            <button className="confirm-dialog__close" onClick={onCancel} title="关闭" type="button">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="confirm-dialog__content">
+            <p className="confirm-dialog__desc">
+              该操作会删除本地环境，请再次确认。
+            </p>
+            <p className="confirm-dialog__local-target">本地环境：{environment.name}</p>
+          </div>
+
+          <div className="confirm-dialog__actions confirm-dialog__actions--footer">
+            <button className="settings-action-button" type="button" onClick={() => setShowLocalConfirm(false)}>
+              返回
+            </button>
+            <button
+              className="settings-action-button settings-action-button--danger"
+              type="button"
+              onClick={() => onConfirm("local-and-database")}
+            >
+              确认删除本地环境
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="confirm-overlay" onClick={onCancel}>
+      <div className="confirm-dialog confirm-dialog--environment" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-dialog__header confirm-dialog__header--plain">
+          <h2>确认删除环境</h2>
+          <button className="confirm-dialog__close" onClick={onCancel} title="关闭" type="button">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="confirm-dialog__content">
+          <p className="confirm-dialog__desc">
+            该操作会改变本机任务、服务或配置状态，需确认后继续。
+          </p>
+
+          <ul className="confirm-dialog__bullets">
+            <li>影响对象：{environment.name}</li>
+            <li>环境来源：{environmentSource}</li>
+            <li>是否会修改文件或环境：按下方删除范围执行</li>
+            <li>资源影响：会清理项目和任务中的环境引用。</li>
+            <li>是否可撤销：是</li>
+            <li>AI 风险提示：请确认目标、资源占用和上下文后再继续。</li>
+          </ul>
+
+          <div className="confirm-delete-options" aria-label="删除范围">
+            <button
+              className={`confirm-delete-option${deleteScope === "database" ? " is-selected" : ""}`}
+              onClick={() => setDeleteScope("database")}
+              type="button"
+            >
+              <span className="confirm-delete-option__radio" aria-hidden="true" />
+              <span>
+                <strong>删除数据库环境</strong>
+                <small>仅移除环境记录和业务引用，不删除本地环境目录。</small>
+              </span>
+            </button>
+            <button
+              className={`confirm-delete-option${deleteScope === "local-and-database" ? " is-selected" : ""}`}
+              onClick={() => setDeleteScope("local-and-database")}
+              type="button"
+            >
+              <span className="confirm-delete-option__radio" aria-hidden="true" />
+              <span>
+                <strong>删除本地以及数据库环境</strong>
+                <small>删除本地环境目录，同时移除环境记录和业务引用。确认时会再次提醒。</small>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="confirm-dialog__actions confirm-dialog__actions--footer">
+          <button className="settings-action-button" type="button" onClick={onCancel}>
+            取消
+          </button>
+          <button
+            className="settings-action-button settings-action-button--danger"
+            type="button"
+            onClick={handlePrimaryConfirm}
+          >
+            {deleteScope === "database" ? "确认删除数据库环境" : "确认删除本地以及数据库环境"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 删除确认弹窗 */
+function ConfirmDialog({
+  envName,
+  onCancel,
+  onConfirm,
+  title = "确认删除环境",
+  resourceType = "环境",
+}: {
+  envName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  title?: string;
+  resourceType?: string;
+}) {
+  return (
+    <div className="confirm-overlay" onClick={onCancel}>
+      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-dialog__header">
+          <XCircle size={22} className="confirm-dialog__icon" />
+          <h2>{title}</h2>
+        </div>
+
+        <p className="confirm-dialog__desc">
+          该操作会改变本机任务、服务或配置状态，需确认后继续。
+        </p>
+
+        <dl className="confirm-dialog__info">
+          <div className="confirm-dialog__row">
+            <dt>影响对象</dt>
+            <dd>{envName}</dd>
+          </div>
+          <div className="confirm-dialog__row">
+            <dt>是否会修改文件或环境</dt>
+            <dd>确认后会按当前权限执行</dd>
+          </div>
+          <div className="confirm-dialog__row">
+            <dt>资源影响</dt>
+            <dd>会从{resourceType}列表移除该{resourceType}记录，并清理项目和任务中的{resourceType}引用；不会删除本地{resourceType}目录。</dd>
+          </div>
+          <div className="confirm-dialog__row">
+            <dt>是否可撤销</dt>
+            <dd>是</dd>
+          </div>
+        </dl>
+
+        <p className="confirm-dialog__risk">
+          <strong>AI 风险提示：</strong>请确认目标、资源占用和上下文后再继续。
+        </p>
+
+        <div className="confirm-dialog__actions">
+          <button
+            className="settings-action-button"
+            type="button"
+            onClick={onCancel}
+          >
+            取消
+          </button>
+          <button
+            className="settings-action-button settings-action-button--danger"
+            type="button"
+            onClick={onConfirm}
+          >
+            确认删除{resourceType}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,19 +3,25 @@ import { SidebarToggle } from "../components/SidebarToggle";
 
 interface WindowTitleBarProps {
   assistantOpen?: boolean;
+  conversationHistoryOpen?: boolean;
   moduleLabel?: string;
   resourceOverviewOpen: boolean;
   showResourceControls?: boolean;
   onToggleAssistant?: () => void;
+  onToggleConversationHistory?: () => void;
+  onNewConversation?: () => void;
   onToggleResourceOverview: () => void;
 }
 
 export function WindowTitleBar({
   assistantOpen = false,
+  conversationHistoryOpen = false,
   moduleLabel,
   resourceOverviewOpen,
   showResourceControls = true,
   onToggleAssistant,
+  onToggleConversationHistory,
+  onNewConversation,
   onToggleResourceOverview,
 }: WindowTitleBarProps) {
   return (
@@ -24,11 +30,22 @@ export function WindowTitleBar({
         <SidebarToggle className="titlebar-icon-btn" />
         {showResourceControls ? (
           <>
-            <button className="titlebar-icon-btn" type="button">
+            <button
+              className={`titlebar-icon-btn${conversationHistoryOpen ? " titlebar-icon-btn--active" : ""}`}
+              type="button"
+              aria-label="对话历史"
+              aria-pressed={conversationHistoryOpen}
+              onClick={onToggleConversationHistory}
+            >
               <History size={16} />
               <span className="titlebar-icon-tip">对话历史</span>
             </button>
-            <button className="titlebar-icon-btn" type="button">
+            <button
+              className="titlebar-icon-btn"
+              type="button"
+              aria-label="新对话"
+              onClick={onNewConversation}
+            >
               <SquarePen size={16} />
               <span className="titlebar-icon-tip">新对话</span>
             </button>

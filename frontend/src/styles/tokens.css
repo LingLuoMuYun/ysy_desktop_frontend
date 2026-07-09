@@ -26,6 +26,7 @@
   --app-min-height: 720px;
   --sidebar-width: 78px;
   --sidebar-compact-width: 76px;
+  --history-width: 0px;
   --assistant-width: 354px;
   --topbar-height: 56px;
   --workspace-x: 32px;

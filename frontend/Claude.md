@@ -111,8 +111,6 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - Page 负责路由、页面级装配和页面级错误边界。
 - AppShell 负责全局三栏布局、统一顶部栏、右侧上下文栏、侧边栏折叠和右侧栏宽度状态。
 - WindowTitleBar 是所有页面共享的顶部栏：首页显示历史对话、新对话、打开位置和资源概览入口；其他模块显示当前模块名和 AI 助手开关。
-- 首页对话历史由 AppShell 托管：`ConversationHistoryPanel` 只负责展示和选择历史，`HomePage` 只负责输入、附件和消息渲染；不要在 HomePage 内部再维护独立历史列表。
-- 首页历史栏是左侧导航与主工作区之间的独立 Grid 列，宽度由 `--history-width` 控制；修改 AppShell 列结构时必须同步检查 1280px、1120px 响应式覆盖。
 - 项目、任务、数据、模型、设置页不要在页面内容区重复展示与顶部栏相同的一级模块标题。
 - 右侧上下文栏：首页渲染本机资源概览，其他模块渲染 AI 助手；不要在页面组件内部再次嵌套 AI 助手面板。
 - Feature 组合业务流程、Hook、局部状态和组件。
@@ -144,7 +142,6 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - localStorage / sessionStorage 只存非敏感偏好；Electron 持久化走主进程安全能力。
 - API 错误映射集中在 `services/api/` 或 feature API 层，不散落页面/组件。
 - mock 只能辅助开发，不能替代正式接口契约。
-- 首页对话历史当前为前端内存态；接入真实 AI sessions 时，应在 AppShell 或独立 home feature/service 中适配 `/api/sessions`、`/api/sessions/{session_key}`，不要把接口 DTO 泄漏到展示组件。
 
 ## Electron 与安全
 
