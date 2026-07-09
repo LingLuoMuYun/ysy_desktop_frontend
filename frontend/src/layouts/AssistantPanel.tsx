@@ -1,7 +1,9 @@
-import { Bot, History, MessageSquarePlus, RefreshCw, SendHorizontal, Tag } from "lucide-react";
+import { Bot, ChevronDown, History, MessageSquarePlus, RefreshCw, SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { RouteKey } from "../app/router";
 import { PromptToolbar, ProjectSelect } from "../components/PromptToolbar";
+import { StatusBadge } from "../components/StatusBadge";
+import type { AssistantModelDetail } from "../types/domain";
 import { useAssistantPanel } from "./AssistantPanelContext";
 
 interface AssistantPanelProps {
@@ -24,26 +26,50 @@ const assistantPrompts = [
 export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
   const [promptSetIndex, setPromptSetIndex] = useState(0);
   const [draft, setDraft] = useState("");
-  const { messages, sendMessage, clearMessages } = useAssistantPanel();
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const {
+    messages,
+    sendMessage,
+    clearMessages,
+    isStreaming,
+    modelList,
+    currentModel,
+    switchModel,
+  } = useAssistantPanel();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // 首页不渲染此面板（首页用 HomePage 自己的对话 UI）
   if (activeRoute === "home") {
     return null;
   }
 
   const prompts = assistantPrompts[promptSetIndex];
   const hasMessages = messages.length > 0;
+  const availableModels = modelList.filter((m) => m.status === "可用");
 
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
+  // 点击外部关闭下拉
+  useEffect(() => {
+    if (!modelDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [modelDropdownOpen]);
+
+  const handleSend = async () => {
     const trimmed = draft.trim();
-    if (!trimmed) return;
-    sendMessage(trimmed);
+    if (!trimmed || isStreaming) return;
     setDraft("");
+    await sendMessage(trimmed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -53,10 +79,20 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
     }
   };
 
+  const handleSwitchModel = async (model: AssistantModelDetail) => {
+    setModelDropdownOpen(false);
+    if (model.id === currentModel?.id) return;
+    try {
+      await switchModel(model.id);
+    } catch {
+      // 切换失败时静默处理，UI 保持当前模型
+    }
+  };
+
   const sendButton = (
     <button
-      className={`send-button${draft.trim() ? " send-button--active" : ""}`}
-      disabled={!draft.trim()}
+      className={`send-button${draft.trim() && !isStreaming ? " send-button--active" : ""}`}
+      disabled={!draft.trim() || isStreaming}
       type="button"
       title="发送"
       onClick={handleSend}
@@ -68,11 +104,52 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
   return (
     <aside className="assistant-panel" aria-label="AI 助手">
       <div className="assistant-header">
-        <strong>新的对话</strong>
+        <div className="assistant-header__title-row">
+          <strong>AI 助手</strong>
+          {/* 模型选择器 */}
+          <div className="assistant-model-selector" ref={dropdownRef}>
+            <button
+              className="assistant-model-selector__trigger"
+              type="button"
+              onClick={() => setModelDropdownOpen((v) => !v)}
+              title={currentModel ? `当前模型：${currentModel.name}` : "选择模型"}
+            >
+              <span className="assistant-model-selector__name">
+                {currentModel?.name ?? "未选择模型"}
+              </span>
+              <ChevronDown size={12} />
+            </button>
+            {modelDropdownOpen && (
+              <div className="assistant-model-selector__dropdown">
+                {availableModels.length === 0 ? (
+                  <div className="assistant-model-selector__empty">
+                    暂无可用模型，请先在设置中添加
+                  </div>
+                ) : (
+                  availableModels.map((model) => (
+                    <button
+                      key={model.id}
+                      className={`assistant-model-selector__option${
+                        model.id === currentModel?.id ? " assistant-model-selector__option--active" : ""
+                      }`}
+                      type="button"
+                      onClick={() => handleSwitchModel(model)}
+                    >
+                      <div className="assistant-model-selector__option-main">
+                        <span className="assistant-model-selector__option-name">{model.name}</span>
+                        <StatusBadge label={model.status} tone={model.tone} />
+                      </div>
+                      <span className="assistant-model-selector__option-provider">
+                        {model.provider}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="assistant-header__tools">
-          <button type="button" title="标注功能">
-            <Tag size={14} />
-          </button>
           <button type="button" title="历史对话">
             <History size={14} />
           </button>
@@ -80,6 +157,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
             type="button"
             title="新建对话"
             onClick={clearMessages}
+            disabled={isStreaming}
           >
             <MessageSquarePlus size={14} />
           </button>
@@ -94,7 +172,15 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
               key={msg.id}
             >
               <div className="chat-message__bubble">
-                <div>{msg.text}</div>
+                {msg.text ? (
+                  <div>{msg.text}</div>
+                ) : (
+                  <div className="chat-message__streaming">
+                    <span className="chat-message__streaming-dot" />
+                    <span className="chat-message__streaming-dot" />
+                    <span className="chat-message__streaming-dot" />
+                  </div>
+                )}
               </div>
               <time>{msg.time}</time>
             </article>
@@ -107,7 +193,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
             <span className="assistant-empty__icon" aria-hidden="true">
               <Bot size={17} />
             </span>
-            <span>开始新的聊天</span>
+            <span>{currentModel ? `使用 ${currentModel.name}` : "开始新的聊天"}</span>
           </div>
           <div className="assistant-suggestions">
             {prompts.map((prompt) => (
@@ -132,8 +218,9 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
           aria-label="AI 助手输入"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="随心输入"
+          placeholder={isStreaming ? "AI 正在回复中..." : "随心输入"}
           value={draft}
+          disabled={isStreaming}
         />
         <PromptToolbar
           className="assistant-composer__tools"

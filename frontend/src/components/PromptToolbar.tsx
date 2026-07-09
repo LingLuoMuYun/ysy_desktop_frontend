@@ -3,18 +3,17 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
-  Cpu,
   Eye,
   FilePenLine,
-  Globe,
   Lightbulb,
   Paperclip,
   Plus,
   Zap,
 } from "lucide-react";
-import type { AssistMode, ModelOption } from "../layouts/AssistantPanelContext";
+import type { AssistMode } from "../layouts/AssistantPanelContext";
 import { useAssistantPanel } from "../layouts/AssistantPanelContext";
 import { PortalDropdown } from "./PortalDropdown";
+import { StatusBadge } from "./StatusBadge";
 import type { ReactNode } from "react";
 
 // --- 选项配置 ---
@@ -22,12 +21,6 @@ const ASSIST_OPTIONS: { key: AssistMode; label: string; desc: string; icon: type
   { key: "readonly", label: "只读建议", desc: "AI 只能分析与解释", icon: Eye },
   { key: "assist", label: "辅助填写", desc: "AI 可生成方案", icon: FilePenLine },
   { key: "confirm", label: "确认后执行", desc: "高风险操作仍需确认", icon: CheckCircle },
-];
-
-const MODEL_OPTIONS: { key: ModelOption; label: string; icon: typeof Cpu }[] = [
-  { key: "deepseek", label: "DeepSeek V4", icon: Cpu },
-  { key: "qwen", label: "本地 Qwen", icon: Cpu },
-  { key: "openai", label: "OpenAI 兼容", icon: Globe },
 ];
 
 const PLUS_OPTIONS: { key: string; label: string; icon: typeof Paperclip }[] = [
@@ -80,13 +73,29 @@ export function PromptToolbar({
   onPlanModeToggle,
   onSkillToggle,
 }: PromptToolbarProps) {
-  const { assistMode, setAssistMode, modelOption, setModelOption } = useAssistantPanel();
+  const { assistMode, setAssistMode, modelList, currentModel, switchModel } = useAssistantPanel();
   const [openMenu, setOpenMenu] = useState<"plus" | "assist" | "model" | null>(null);
   const [skillsSubOpen, setSkillsSubOpen] = useState(false);
+  const [switchingModelId, setSwitchingModelId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeAssist = ASSIST_OPTIONS.find((o) => o.key === assistMode)!;
-  const activeModel = MODEL_OPTIONS.find((o) => o.key === modelOption)!;
+  const activeAssist = ASSIST_OPTIONS.find((o) => o.key === assistMode) ?? ASSIST_OPTIONS[0];
+  const availableModels = modelList.filter((model) => model.status === "可用");
+  const selectableModels = availableModels.length > 0 ? availableModels : modelList;
+  const activeModelLabel = currentModel?.name ?? (modelList.length > 0 ? "选择模型" : "暂无模型");
+
+  const handleModelSelect = async (modelId: string) => {
+    setOpenMenu(null);
+    if (modelId === currentModel?.id || switchingModelId) return;
+    setSwitchingModelId(modelId);
+    try {
+      await switchModel(modelId);
+    } catch (error) {
+      console.warn("[PromptToolbar] 切换模型失败:", error);
+    } finally {
+      setSwitchingModelId(null);
+    }
+  };
 
   const handlePlusOptionClick = async (key: string) => {
     if (key === "skills") {
@@ -250,26 +259,33 @@ export function PromptToolbar({
             type="button"
             onClick={() => setOpenMenu(openMenu === "model" ? null : "model")}
           >
-            {activeModel.label}
+            <span className="prompt-select__label">{activeModelLabel}</span>
             <ChevronDown size={14} />
           </button>
         }
       >
-        {MODEL_OPTIONS.map((opt) => (
-          <button
-            className={`prompt-dropdown__item${opt.key === modelOption ? " prompt-dropdown__item--active" : ""}`}
-            type="button"
-            key={opt.key}
-            onClick={() => {
-              setModelOption(opt.key);
-              setOpenMenu(null);
-            }}
-          >
-            <opt.icon size={15} className="prompt-dropdown__item-icon" />
-            <span>{opt.label}</span>
-            {opt.key === modelOption && <span className="prompt-dropdown__check" />}
-          </button>
-        ))}
+        {selectableModels.length === 0 ? (
+          <div className="prompt-dropdown__empty">请先在设置中添加模型</div>
+        ) : (
+          selectableModels.map((model) => (
+            <button
+              className={`prompt-dropdown__item prompt-dropdown__item--model${
+                model.id === currentModel?.id ? " prompt-dropdown__item--active" : ""
+              }`}
+              type="button"
+              key={model.id}
+              disabled={Boolean(switchingModelId) || model.status !== "可用"}
+              onClick={() => void handleModelSelect(model.id)}
+            >
+              <div className="prompt-dropdown__item-text">
+                <span className="prompt-dropdown__item-label">{model.name}</span>
+                <span className="prompt-dropdown__item-desc">{model.provider} · {model.context}</span>
+              </div>
+              <StatusBadge label={switchingModelId === model.id ? "切换中" : model.status} tone={model.tone} />
+              {model.id === currentModel?.id && <span className="prompt-dropdown__check" />}
+            </button>
+          ))
+        )}
       </PortalDropdown>
 
       {sendButton}

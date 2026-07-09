@@ -96,8 +96,6 @@ export interface AssistantModelDetail extends AssistantModelSummary {
   apiKey: string;
   apiKeyConfigured: boolean;
   connectionStatus: string;
-  maxOutputLength: string;
+  maxOutput: string;
   temperature: string;
-  timeout: string;
-  retryCount: number;
 }

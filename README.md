@@ -2,7 +2,7 @@
 
 面向本地深度学习实验和轻量大模型工作流的桌面应用。帮助用户在一台本机上完成 AI 项目管理、数据导入与检查、训练任务执行、推理服务创建、模型资产沉淀、运行环境管理和 AI 辅助诊断。
 
-当前仓库处于 0-1 规划和工程初始化阶段，最新 PRD 稳定版本已整理到 [docs/prd/V1.0 PRD.md](docs/prd/V1.0%20PRD.md)。
+当前仓库处于 V1.0 原型到联调阶段：前端桌面壳、首页、设置页、AI 助手面板和部分后端接口适配已落地，最新 PRD 稳定版本见 [docs/prd/V1.0 PRD.md](docs/prd/V1.0%20PRD.md)。
 
 ## 功能模块
 
@@ -35,12 +35,14 @@
 | [Electron](https://www.electronjs.org/) | ^33.0 | 桌面端容器（主进程、预加载、窗口管理） |
 | [Lucide React](https://lucide.dev/) | ^0.468 | 图标库 |
 
-### 后端（规划中）
+### 后端 / AI 助手
 
 | 技术 | 用途 |
 |------|------|
 | Python | 业务后端、任务执行器、数据/模型/环境检测 |
-| Python | AI 助手与智能编排（上下文组装、日志诊断、动作请求） |
+| AI Agent | 上下文组装、日志诊断、动作请求、受控工具编排 |
+
+默认后端 API Base 为 `http://10.0.1.5:8765`。前端服务层可通过 `VITE_API_BASE_URL` 覆盖；开发环境中若浏览器直连失败，会回退到 Vite 同源代理。
 
 ## 项目结构
 
@@ -56,7 +58,7 @@ ysy_desktop/
 │   │   ├── layouts/           # 布局组件（AppShell、Sidebar、WindowTitleBar、AssistantPanel 等）
 │   │   ├── mocks/             # Mock 原型数据
 │   │   ├── pages/             # 页面组件（Home、Projects、Tasks、Data、Models、Settings）
-│   │   ├── services/          # API / IPC 服务层（规划中）
+│   │   ├── services/          # API / IPC 服务层（模型配置、聊天、会话等）
 │   │   ├── stores/            # 全局状态 Store（规划中）
 │   │   ├── styles/            # 全局样式与 CSS 设计 Token
 │   │   └── types/             # TypeScript 领域类型定义
@@ -120,6 +122,12 @@ pnpm run electron:dev
 
 该命令会启动 Vite `http://localhost:5174/`，等待服务可访问后打开 Electron。桌面壳使用 Windows/macOS 系统原生标题栏，初始最小窗口尺寸为 `1100x720`。
 
+默认后端地址为 `http://10.0.1.5:8765`。如需临时切换：
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8765 pnpm run electron:dev
+```
+
 ### 启动 Web 开发服务器
 
 ```bash
@@ -163,6 +171,7 @@ pnpm run electron:preview
 - [仓库结构说明](docs/architecture/repository-structure.md) — 架构与目录说明
 - [Vibe Coding 协作规范](docs/process/vibe-coding.md) — AI 辅助编码约定
 - [OpenSpec 工作流](docs/development/openspec-workflow.md) — 需求变更规范
+- [OpenSpec 目录入口](openspec/README.md) — OpenSpec 路径、阅读顺序和 Change 约定
 - [Git 工作流](docs/development/git-workflow.md) — 分支与提交规范
 - [AI 编码规则](docs/development/ai-coding-rules.md) — AI 编码约束
 - [Code Review 清单](docs/development/pr-review-checklist.md) — PR 审查要点
@@ -183,6 +192,7 @@ pnpm run electron:preview
 ## 协作原则
 
 1. 所有功能同时支持用户点击入口和 AI 助手入口。
-2. 所有需求变更先写 spec，再开发，再验证，再提交 git。
-3. 每次功能修改必须留下文档记录和独立 git commit。
+2. 所有需求变更先写 OpenSpec，再开发，再验证。
+3. 每次功能修改必须留下验收记录；是否提交 git 由当前协作指令决定。
 4. 三人协作默认按前端、后端/本地执行、AI/产品编排拆分职责。
+5. 高风险动作必须由后端受控执行并经过用户确认，AI 助手不得绕过后端直接执行本机操作。

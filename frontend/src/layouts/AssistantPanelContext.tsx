@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { assistantModelsApi } from "../services/assistantModelsApi";
+import { chatApi } from "../services/chatApi";
+import type { AssistantModelDetail } from "../types/domain";
 
 // --- 对话共享状态类型 ---
 export type AssistMode = "readonly" | "assist" | "confirm";
-export type ModelOption = "deepseek" | "qwen" | "openai";
 
 export interface PanelMessage {
   id: string;
@@ -20,37 +22,33 @@ function getTimeLabel() {
   }).format(new Date());
 }
 
-function generateReply(input: string) {
-  if (input.includes("检测环境")) {
-    return `已收到环境检测请求。正在对 ${input.replace("检测环境：", "")} 进行全项检查，请稍候查看检测结果...`;
-  }
-  if (input.includes("检测模型") || input.includes("连接测试")) {
-    return `已收到模型检测请求。正在对 ${input.replace("检测模型：", "").replace("连接测试：", "")} 进行连通性测试与参数校验，请稍候...`;
-  }
-  return "已收到你的消息，我来帮你分析。可以告诉我更多细节吗？";
-}
-
-interface DialogState {
-  assistMode: AssistMode;
-  modelOption: ModelOption;
-  selectedProject: string;
-  setAssistMode: (mode: AssistMode) => void;
-  setModelOption: (model: ModelOption) => void;
-  setSelectedProject: (project: string) => void;
-}
-
 // --- 面板 UI 状态 ---
-interface AssistantPanelContextValue extends DialogState {
+interface AssistantPanelContextValue {
   assistantOpen: boolean;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   toggleAssistant: () => void;
   /** 共享消息列表（跨页面保持） */
   messages: PanelMessage[];
-  /** 从任意页面向助手面板发送消息 */
-  sendMessage: (text: string) => void;
+  /** 从任意页面向助手面板发送消息（异步，等待 AI 回复） */
+  sendMessage: (text: string) => Promise<void>;
   /** 清空消息 */
   clearMessages: () => void;
+  /** 当前是否正在等待 AI 回复 */
+  isStreaming: boolean;
+  /** 模型列表 */
+  modelList: AssistantModelDetail[];
+  /** 当前使用的模型 */
+  currentModel: AssistantModelDetail | null;
+  /** 切换运行时模型 */
+  switchModel: (modelConfigId: string) => Promise<void>;
+  refreshModels: () => Promise<void>;
+  /** 工具栏辅助模式 */
+  assistMode: AssistMode;
+  setAssistMode: (mode: AssistMode) => void;
+  /** 工具栏关联项目 */
+  selectedProject: string;
+  setSelectedProject: (projectKey: string) => void;
 }
 
 const AssistantPanelContext = createContext<AssistantPanelContextValue>({
@@ -58,15 +56,18 @@ const AssistantPanelContext = createContext<AssistantPanelContextValue>({
   sidebarCollapsed: false,
   toggleSidebar: () => undefined,
   toggleAssistant: () => undefined,
-  assistMode: "assist",
-  modelOption: "deepseek",
-  selectedProject: "none",
-  setAssistMode: () => undefined,
-  setModelOption: () => undefined,
-  setSelectedProject: () => undefined,
   messages: [],
-  sendMessage: () => undefined,
+  sendMessage: async () => undefined,
   clearMessages: () => undefined,
+  isStreaming: false,
+  modelList: [],
+  currentModel: null,
+  switchModel: async () => undefined,
+  refreshModels: async () => undefined,
+  assistMode: "assist",
+  setAssistMode: () => undefined,
+  selectedProject: "none",
+  setSelectedProject: () => undefined,
 });
 
 export function AssistantPanelProvider({
@@ -82,29 +83,120 @@ export function AssistantPanelProvider({
   toggleSidebar: () => void;
   toggleAssistant: () => void;
 }) {
-  // 对话共享状态 —— 由 Provider 托管，跨页面保持
-  const [assistMode, setAssistMode] = useState<AssistMode>("assist");
-  const [modelOption, setModelOption] = useState<ModelOption>("deepseek");
-  const [selectedProject, setSelectedProject] = useState("none");
   const [messages, setMessages] = useState<PanelMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [modelList, setModelList] = useState<AssistantModelDetail[]>([]);
+  const [currentModel, setCurrentModel] = useState<AssistantModelDetail | null>(null);
+  const [assistMode, setAssistMode] = useState<AssistMode>("assist");
+  const [selectedProject, setSelectedProject] = useState("none");
   const msgCounter = useRef(0);
+  const loadModels = useCallback(async () => {
+    const models = await assistantModelsApi.list();
+    setModelList(models);
+    setCurrentModel((current) => {
+      if (current) {
+        const refreshedCurrent = models.find((model) => model.id === current.id);
+        if (refreshedCurrent) return refreshedCurrent;
+      }
+      return models.find((model) => model.isDefault) ?? models[0] ?? null;
+    });
+  }, []);
 
-  const sendMessage = useCallback((text: string) => {
+  // 加载模型列表
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadInitialModels() {
+      try {
+        const models = await assistantModelsApi.list();
+        if (cancelled) return;
+        setModelList(models);
+        const defaultModel = models.find((m) => m.isDefault) ?? models[0] ?? null;
+        setCurrentModel(defaultModel);
+      } catch {
+        // 加载失败时静默处理，UI 会显示加载状态
+      }
+    }
+
+    loadInitialModels();
+    return () => { cancelled = true; };
+  }, []);
+
+  const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || isStreaming) return;
+
     const time = getTimeLabel();
     const id = msgCounter.current++;
-
     const userMsg: PanelMessage = { id: `user-${id}`, role: "user", text: trimmed, time };
-    const assistantMsg: PanelMessage = { id: `assistant-${id}`, role: "assistant", text: generateReply(trimmed), time };
 
+    // 先添加用户消息，AI 消息用占位
+    const assistantMsg: PanelMessage = { id: `assistant-${id}`, role: "assistant", text: "", time };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
-  }, []);
+    setIsStreaming(true);
+
+    try {
+      // 构建上下文（将历史消息作为多轮对话）
+      const existingMessages = messages;
+      const historyText = existingMessages.slice(-6).map((m) => `${m.role === "user" ? "用户" : "助手"}: ${m.text}`).join("\n");
+      const fullMessage = existingMessages.length > 0
+        ? `[对话历史]\n${historyText}\n\n[当前消息]\n${trimmed}`
+        : trimmed;
+
+      const result = await chatApi.sendMessage(
+        fullMessage,
+        "default",
+        // onDelta: 流式更新 AI 回复
+        (delta) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
+              updated[updated.length - 1] = { ...last, text: last.text + delta };
+            }
+            return updated;
+          });
+        },
+      );
+
+      // 确保最终文本完整
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
+          updated[updated.length - 1] = { ...last, text: result.reply || last.text, time };
+        }
+        return updated;
+      });
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : "AI 回复失败";
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
+          updated[updated.length - 1] = { ...last, text: errorText, time };
+        }
+        return updated;
+      });
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [messages, isStreaming]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
     msgCounter.current = 0;
   }, []);
+
+  const switchModel = useCallback(async (modelConfigId: string) => {
+    await chatApi.switchRuntimeModel(modelConfigId);
+    const model = modelList.find((m) => m.id === modelConfigId) ?? null;
+    setCurrentModel(model);
+  }, [modelList]);
+
+  const refreshModels = useCallback(async () => {
+    await loadModels();
+  }, [loadModels]);
 
   const value = useMemo<AssistantPanelContextValue>(
     () => ({
@@ -112,17 +204,35 @@ export function AssistantPanelProvider({
       sidebarCollapsed,
       toggleSidebar,
       toggleAssistant,
-      assistMode,
-      modelOption,
-      selectedProject,
-      setAssistMode,
-      setModelOption,
-      setSelectedProject,
       messages,
       sendMessage,
       clearMessages,
+      isStreaming,
+      modelList,
+      currentModel,
+      switchModel,
+      refreshModels,
+      assistMode,
+      setAssistMode,
+      selectedProject,
+      setSelectedProject,
     }),
-    [assistantOpen, sidebarCollapsed, toggleSidebar, toggleAssistant, assistMode, modelOption, selectedProject, messages, sendMessage, clearMessages],
+    [
+      assistantOpen,
+      sidebarCollapsed,
+      toggleSidebar,
+      toggleAssistant,
+      messages,
+      sendMessage,
+      clearMessages,
+      isStreaming,
+      modelList,
+      currentModel,
+      switchModel,
+      refreshModels,
+      assistMode,
+      selectedProject,
+    ],
   );
 
   return <AssistantPanelContext.Provider value={value}>{children}</AssistantPanelContext.Provider>;

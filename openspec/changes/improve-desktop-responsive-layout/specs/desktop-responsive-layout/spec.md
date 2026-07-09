@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: Desktop Window Size Contract
-The system SHALL define and enforce an initial minimum supported desktop window size of `1100px` by `720px` for the Electron shell, unless validation leads to a later adjustment.
+The system SHALL define and enforce a minimum supported desktop content size of `1100px` by `640px` for the Electron shell after validation showed the initial `1100px` by `720px` outer-window contract could clip content under native Windows title bar chrome.
 
 #### Scenario: Window is resized below the minimum
 - **WHEN** a user attempts to resize the Electron window below the configured minimum width or height
 - **THEN** the window remains at or above the configured minimum size
+
+#### Scenario: Display work area is smaller than the preferred minimum
+- **WHEN** the current Windows display work area is smaller than the preferred Electron minimum size because of resolution, taskbar, or DPI scaling
+- **THEN** the configured minimum size is clamped to the available work area so native maximize remains available
 
 #### Scenario: Browser viewport is below the minimum during development
 - **WHEN** the app is viewed in a browser viewport below the configured minimum size
@@ -97,6 +101,10 @@ The system SHALL use native Electron/system title bars on Windows and macOS for 
 #### Scenario: Windows desktop shell is configured
 - **WHEN** the app runs in the Windows Electron shell
 - **THEN** it uses native Windows window controls and does not require custom draggable title bar behavior
+
+#### Scenario: Windows maximize control is available
+- **WHEN** the app runs in the Windows Electron shell
+- **THEN** the native maximize control is enabled and the window remains resizable
 
 #### Scenario: macOS desktop shell is configured
 - **WHEN** the app runs in the macOS Electron shell

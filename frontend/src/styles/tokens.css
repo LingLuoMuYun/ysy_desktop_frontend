@@ -23,14 +23,14 @@
   --shadow: 0 24px 80px rgba(21, 35, 55, 0.16);
   --radius: 8px;
   --app-min-width: 1100px;
-  --app-min-height: 720px;
+  --app-min-height: 640px;
   --sidebar-width: 78px;
   --sidebar-compact-width: 76px;
   --history-width: 0px;
   --assistant-width: 354px;
   --topbar-height: 56px;
-  --workspace-x: 32px;
-  --workspace-bottom: 30px;
+  --workspace-x: 24px;
+  --workspace-bottom: 20px;
   --breakpoint-compact: 1280px;
   --breakpoint-minimum: 1100px;
 }

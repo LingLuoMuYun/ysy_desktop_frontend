@@ -9,6 +9,8 @@ React + Electron 桌面端代码目录。
 - 调用后端受控 API，不直接执行本机高风险动作。
 - 承载首页、项目、任务、数据、模型、设置和 AI 助手界面。
 
+默认后端地址为 `http://10.0.1.5:8765`。服务层位于 `src/services/`，当前已接入 AI 助手模型配置、运行时模型切换、聊天流和会话接口。
+
 ## 快速开始
 
 ```bash
@@ -17,6 +19,12 @@ pnpm run electron:dev      # 启动 Vite + Electron 桌面窗口
 pnpm run dev               # 仅启动 Vite 开发服务器（浏览器访问）
 pnpm run build             # 生产构建
 pnpm run typecheck         # TypeScript 类型检查
+```
+
+临时切换后端：
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8765 pnpm run electron:dev
 ```
 
 | 命令 | 说明 | 端口 |
@@ -83,7 +91,9 @@ frontend/
       PromptToolbar.tsx       # AI 助手提示词工具栏
     features/                 # 业务 Feature（按领域划分，规划中）
     hooks/                    # 共享 Hooks（规划中）
-    services/                 # API / IPC 服务层（规划中）
+    services/                 # API / IPC 服务层
+      assistantModelsApi.ts   # AI 助手模型配置 CRUD、默认模型、连接测试
+      chatApi.ts              # 聊天流、运行时模型切换、会话接口
     stores/                   # 全局状态 Store（规划中）
     types/                    # TypeScript 类型
       domain.ts               # 核心领域类型
@@ -127,6 +137,7 @@ frontend/
 - 模型删除确认弹窗
 - 连接测试 / 检测模型：统一弹出页面顶部 toast（不走 AI 对话栏）
 - API Key 隐私保护：仅展示 `sk-` 前缀和末尾 5 个字符
+- 首页和右侧助手工具栏的模型选择来自后端模型列表，仅展示可用模型；选择模型会调用运行时切换接口
 
 **弹窗行为**：
 - 所有弹窗（确认删除、创建环境、模型详情/编辑/添加）仅覆盖中间主内容区
@@ -170,6 +181,18 @@ frontend/
 |------|------|
 | 5174 | Vite 开发服务器 |
 | 4174 | Vite 预览服务器 |
+
+## 后端联调
+
+| 项 | 默认值 |
+|----|--------|
+| API Base | `http://10.0.1.5:8765` |
+| 覆盖变量 | `VITE_API_BASE_URL` |
+| 模型列表 | `GET /api/settings/assistant/models` |
+| 运行时模型切换 | `POST /api/runtime/model` |
+| 聊天流 | `POST /api/chat/stream` |
+
+开发环境请求会优先访问 `API Base`。如果浏览器或 Electron 渲染进程因 CORS / 网络策略无法直连，会回退到同源 `/api/...`，由 Vite proxy 转发到后端。
 
 ## 打包安装包
 

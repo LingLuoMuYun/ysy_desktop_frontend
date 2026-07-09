@@ -34,7 +34,7 @@ Use desktop workstation sizes as the primary targets:
 - Standard: `1280px`
 - Compact desktop: `1100px` to `1279px`
 - Minimum supported width: `1100px` initially, adjustable after validation.
-- Minimum supported height: `720px` initially, adjustable after validation.
+- Minimum supported height: `640px` content area after Windows title-bar validation feedback.
 
 Alternative considered: mobile-first responsive layout. Rejected because the product is an Electron desktop workstation with dense operational screens, fixed navigation, and local execution workflows.
 
@@ -95,7 +95,7 @@ The following product decisions are confirmed for the first implementation pass:
 
 These decisions may still require user or product confirmation during implementation:
 
-- Whether the initial `1100px` by `720px` minimum feels too restrictive or too loose after real viewport testing.
+- Whether the adjusted `1100px` by `640px` content minimum feels too restrictive or too loose after Windows real-window testing.
 - Whether specific high-value tables need priority-column behavior instead of horizontal scrolling.
 - Whether any later visual direction requires a separate frameless/custom title bar change.
 
@@ -115,13 +115,14 @@ These can be implemented by engineering as long as the visible behavior satisfie
 
 ## Risks / Trade-offs
 
-- [Risk] A minimum width that is too large may feel restrictive on small laptops. -> Mitigation: start with `1100px` by `720px` and revise after validation.
+- [Risk] A minimum width or height that is too large may feel restrictive on small laptops. -> Mitigation: use a `1100px` by `640px` content minimum and revise after validation.
 - [Risk] A resizable right panel may reduce available workspace width. -> Mitigation: clamp panel width and keep the main content column flexible.
 - [Risk] Tables and logs may remain readable but require horizontal scrolling. -> Mitigation: identify per-page priority columns and use horizontal scrolling as the default fallback.
 - [Risk] Browser tuning can miss Electron title bar, platform chrome, DPI, and resize differences. -> Mitigation: require Electron validation on Windows and macOS before marking implementation complete.
+- [Risk] Windows DPI scaling or a small display work area can make the preferred minimum size larger than the available screen, causing the native maximize button to be disabled. -> Mitigation: clamp Electron initial and minimum content sizes to the active display work area and explicitly keep the window resizable/maximizable.
 - [Risk] Too many page-specific fixes can fragment the layout system or conflict with unfinished page structures. -> Mitigation: first create shared shell/layout rules, finish 首页, and limit other pages to low-risk safeguards until their structure is complete.
 
 ## Open Questions
 
 1. Do any specific tables need priority-column hiding instead of the common/default table behavior?
-2. After Electron validation, should the initial `1100px` by `720px` minimum be adjusted?
+2. After Windows Electron validation, should the adjusted `1100px` by `640px` content minimum be changed again?

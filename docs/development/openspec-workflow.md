@@ -16,9 +16,9 @@ OpenSpec Change / Feature Spec
 
 优先级从高到低依次为：
 
-1. `openspec/global/global.spec.md`
-2. `openspec/modules/*.spec.md`
-3. `openspec/changes/<change-id>/`
+1. `openspec/frontend/global/global.spec.md`
+2. `openspec/frontend/modules/*.spec.md`
+3. `openspec/frontend/changes/<change-id>/` 或 `openspec/changes/<change-id>/`
 4. 代码实现与测试
 
 如果低层内容与高层冲突，先暂停实现并修正 Spec，不要静默让代码扩大边界。
@@ -28,7 +28,7 @@ OpenSpec Change / Feature Spec
 路径：
 
 ```text
-openspec/global/global.spec.md
+openspec/frontend/global/global.spec.md
 ```
 
 Global Spec 定义系统级规则，不是普通 PRD。它应包含：
@@ -55,9 +55,9 @@ Global Spec 定义系统级规则，不是普通 PRD。它应包含：
 路径：
 
 ```text
-openspec/modules/frontend.spec.md
-openspec/modules/backend.spec.md
-openspec/modules/agent.spec.md
+openspec/frontend/modules/frontend.spec.md
+openspec/frontend/modules/backend.spec.md
+openspec/frontend/modules/agent.spec.md
 ```
 
 Module Spec 定义模块级架构约束。
@@ -104,7 +104,7 @@ Module Spec 定义模块级架构约束。
 路径：
 
 ```text
-openspec/changes/<change-id>/
+openspec/frontend/changes/<change-id>/
 ```
 
 每个需求必须有独立 OpenSpec Change。分支可以按人或模块划分，但 OpenSpec Change 必须按需求划分。
@@ -112,7 +112,7 @@ openspec/changes/<change-id>/
 推荐目录结构：
 
 ```text
-openspec/changes/task-create-training-job/
+openspec/frontend/changes/task-create-training-job/
   proposal.md
   design.md
   tasks.md
@@ -138,7 +138,7 @@ openspec/changes/task-create-training-job/
 
 1. 从 `dev` 拉取 `feature/*` 分支。
 2. 阅读 Global Spec、相关 Module Spec、当前 PRD 和既有 Change。
-3. 创建 `openspec/changes/<change-id>/`。
+3. 创建 `openspec/frontend/changes/<change-id>/`；跨模块或当前已存在顶层变更可使用 `openspec/changes/<change-id>/`。
 4. 写 `proposal.md`、`tasks.md`；涉及架构、API、数据模型、状态机或复杂流程时写 `design.md`。
 5. 实现代码、测试和文档。
 6. 更新 Change 的任务状态与验收记录。
@@ -150,6 +150,6 @@ openspec/changes/task-create-training-job/
 
 本仓库已按 OpenSpec 体系重建，不再保留 `docs/specs/`。
 
-- 新需求统一使用 `openspec/changes/<change-id>/`。
-- `openspec/global/` 和 `openspec/modules/` 是系统与模块约束的权威入口。
+- 新需求优先使用 `openspec/frontend/changes/<change-id>/`；跨模块变更使用 `openspec/changes/<change-id>/` 时必须说明影响模块。
+- `openspec/frontend/global/` 和 `openspec/frontend/modules/` 是当前系统与模块约束的权威入口。
 - 不允许在 `docs/` 下重新创建平行的 specs 目录。

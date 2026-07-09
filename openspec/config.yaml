@@ -1,20 +1,30 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: 桌面智算 (YSY Desktop)
+  Domain: 本地 AI 项目、数据、训练任务、模型资产、运行环境和 AI 助手工作台。
+  Frontend: React 19 + TypeScript + Vite + Electron，代码位于 frontend/。
+  Backend API: 默认 http://10.0.1.5:8765，可通过 VITE_API_BASE_URL 覆盖。
+  Spec entry: openspec/README.md。
+  Current authoritative specs:
+    - openspec/frontend/global/global.spec.md
+    - openspec/frontend/modules/frontend.spec.md
+    - openspec/frontend/modules/backend.spec.md
+    - openspec/frontend/modules/agent.spec.md
+  Change directories:
+    - openspec/frontend/changes/<change-id> for frontend-scoped requirements
+    - openspec/changes/<change-id> for cross-module or active top-level changes
+  Safety: 高风险本机动作必须走后端受控执行和用户确认；AI 助手不得绕过后端直接执行 shell。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - 必须包含背景、目标、非目标、影响范围、用户流程、风险和验收标准。
+    - 涉及接口、状态、数据模型、IPC 或 AI 行为时必须点名受影响契约。
+    - 不得把 mock 或临时方案描述成正式能力。
+  design:
+    - 涉及架构、API、数据模型、状态机、布局框架或 AI 工具编排时必须提供。
+    - 必须写清 UI 入口、loading/empty/error/cancel/retry 状态和高风险确认。
+  tasks:
+    - 使用可勾选任务清单。
+    - 任务应可独立验证，避免一个任务同时覆盖多个无关模块。
+    - 完成实现后同步更新任务状态和验收记录。

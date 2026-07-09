@@ -5,6 +5,8 @@
 - `pnpm run typecheck`: passed.
 - `pnpm run build`: passed.
 - `pnpm run electron:dev`: launched the Electron dev process and kept running until manually stopped.
+- Electron window sizing was adjusted to `useContentSize: true`, initial content size `1180x700`, and minimum content size `1100x640` to avoid Windows native title bar chrome reducing the usable renderer area.
+- Electron window creation now clamps initial and minimum content sizes to the active display work area and explicitly enables `resizable`, `maximizable`, and `fullscreenable` so the Windows maximize control does not become disabled on constrained displays.
 
 ### Browser Responsive Checks
 

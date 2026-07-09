@@ -7,11 +7,11 @@
 - 项目：`ysy_desktop`，本地深度学习实验和轻量大模型工作流桌面应用。
 - 前端范围：只负责 `frontend/` 下 React + TypeScript + Electron + Vite 相关代码、前端文档、前端验收记录和必要共享契约。
 - 前端不得越权决定后端、AI 助手、全局系统边界或非前端 OpenSpec。
-- 前端 OpenSpec 固定读取 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/frontend/`。
-- 前端需求变更读取 `openspec/frontend/changes/<change-id>/`。
+- 前端 OpenSpec 固定读取 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/frontend/`；跨模块或活跃顶层变更同时检查 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/changes/`。
+- 前端需求变更优先读取 `openspec/frontend/changes/<change-id>/`；若任务指向顶层变更，则读取 `openspec/changes/<change-id>/`。
 - 前端全局规则读取 `openspec/frontend/global/global.spec.md`。
 - 前端模块规则读取 `openspec/frontend/modules/frontend.spec.md`。
-- 当前仓库不再使用 `docs/specs/`；不要重新创建平行 specs 目录。
+- 当前仓库不再使用 `docs/specs/`；不要重新创建平行 specs 目录。OpenSpec 导航入口见 `openspec/README.md`。
 
 ## 必读顺序
 
@@ -23,7 +23,7 @@
 4. `docs/development/ai-coding-rules.md`
 5. `openspec/frontend/global/global.spec.md`
 6. `openspec/frontend/modules/frontend.spec.md`
-7. 当前任务对应的 `openspec/frontend/changes/<change-id>/`
+7. 当前任务对应的 `openspec/frontend/changes/<change-id>/` 或 `openspec/changes/<change-id>/`
 8. `frontend/README.md`
 9. `frontend/AGENTS.md`
 10. 用户本轮提供的接口文档、设计说明或验收记录
@@ -51,6 +51,7 @@
 - 修正明显错别字、格式问题、重复描述和路径引用。
 - 整理前端任务、验收记录、风险和待确认点。
 - 做只读检查和非破坏性验证。
+- 在既有文档中修正明显过时路径、接口地址、命令和目录说明。
 
 必须先确认：
 
@@ -66,6 +67,7 @@
 
 - 正式需求遵循：先写 spec -> 再开发 -> 再验证 -> 再提交 git。
 - 新增前端功能必须关联 `openspec/frontend/changes/<change-id>/`。
+- 涉及跨模块布局、后端契约或 AI 助手行为的需求，可关联 `openspec/changes/<change-id>/`，但必须说明影响到哪些模块 spec。
 - 开发前确认是否影响页面、路由、组件、状态、API 调用、IPC 调用、AI 助手入口、高风险动作或验收记录。
 - 不直接修改 `openspec/frontend/global/`、`openspec/frontend/modules/`，除非用户明确要求或当前 Change 已说明原因、影响和验证方式。
 
@@ -83,8 +85,7 @@ frontend/
     components/
     features/<domain>/     # 目录已创建（home/projects/tasks/data/models/settings），待 Feature 拆分
     hooks/
-    services/api/
-    services/ipc/
+    services/             # 当前为扁平服务层，可按增长拆为 api/ipc
     stores/
     types/                # domain.ts 为核心领域类型（ProjectSummary, TaskSummary, 
                           #   RuntimeEnvironmentDetail, AssistantModelDetail 等）
@@ -96,7 +97,7 @@ frontend/
   tests/
 ```
 
-> 当前状态：`features/<domain>/` 子目录已创建但为空壳，设置页逻辑仍在 `pages/SettingsPage.tsx` 中（~673 行）。后续重构将按 Page → Feature → Hook → Component 拆分。`types/domain.ts` 集中管理领域类型，`styles/tokens.css` 提供设计 Token。
+> 当前状态：`features/<domain>/` 子目录已创建但多数仍为空壳，设置页主体逻辑仍在 `pages/SettingsPage.tsx` 中。后续重构按 Page -> Feature -> Hook/Service -> Component 渐进拆分。`types/domain.ts` 集中管理领域类型，`styles/tokens.css` 提供设计 Token。
 
 调用方向：
 
@@ -118,6 +119,7 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - Feature 组合业务流程、Hook、局部状态和组件。
 - Component 只做展示和局部交互，不直接调 Service、API 或 IPC。
 - Service/API 负责请求、响应解析、错误映射、取消、重试和幂等。
+- 当前已存在 `services/assistantModelsApi.ts` 与 `services/chatApi.ts`，默认后端地址为 `http://10.0.1.5:8765`，可用 `VITE_API_BASE_URL` 覆盖。
 - IPC Client 负责安全封装渲染进程到 preload / 主进程调用。
 - Store 只保存跨组件或跨页面状态，不存大量临时 UI 状态。
 - feature 不直接依赖其他 feature 内部实现；共享内容下沉到公共层。
@@ -143,6 +145,7 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - 搜索、筛选、分页等可分享状态同步到 URL。
 - localStorage / sessionStorage 只存非敏感偏好；Electron 持久化走主进程安全能力。
 - API 错误映射集中在 `services/api/` 或 feature API 层，不散落页面/组件。
+- 当前服务层仍在 `src/services/` 扁平目录；新增接口应先复用现有请求封装，复杂后再拆 `services/api/`。
 - mock 只能辅助开发，不能替代正式接口契约。
 - 首页对话历史当前为前端内存态；接入真实 AI sessions 时，应在 AppShell 或独立 home feature/service 中适配 `/api/sessions`、`/api/sessions/{session_key}`，不要把接口 DTO 泄漏到展示组件。
 

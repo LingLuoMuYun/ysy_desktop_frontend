@@ -2,6 +2,8 @@
   "name": "ysy-desktop-frontend",
   "private": true,
   "version": "0.1.0",
+  "description": "桌面智算 Electron desktop application",
+  "author": "YSY Desktop Team",
   "type": "module",
   "main": "electron/main/index.js",
   "scripts": {
@@ -68,7 +70,6 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
-    "electron": "^33.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -78,6 +79,7 @@
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "electron": "^33.0.0",
     "electron-builder": "^26.15.3",
     "playwright": "^1.61.1"
   }

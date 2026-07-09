@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { ArrowUp, Link2, Lightbulb, RefreshCw, X } from "lucide-react";
 import { PromptToolbar, ProjectSelect, type SkillOption } from "../components/PromptToolbar";
 import { suggestionSets, type SuggestionItem } from "../mocks/prototypeData";
+import { chatApi } from "../services/chatApi";
 
 const CATEGORY_COLORS: Record<SuggestionItem["category"], string> = {
   数据: "#1f9d66",
@@ -42,14 +43,6 @@ function getCurrentTimeLabel() {
   }).format(new Date());
 }
 
-function createAssistantReply(input: string) {
-  if (input.length <= 8) {
-    return "我先看了你的输入和当前上下文。建议从项目绑定、数据路径和运行环境三处开始确认，通常能最快定位问题。";
-  }
-
-  return "我已经收到你的需求。接下来可以先确认关联项目、输入数据和运行环境，再拆成可执行步骤；如果你愿意，我可以继续帮你整理成任务计划。";
-}
-
 export function HomePage({ messages = [], onConversationTitleChange, onMessagesChange }: HomePageProps = {}) {
   const [inputValue, setInputValue] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<ChatAttachment[]>([]);
@@ -57,15 +50,17 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
   const [activeSkills, setActiveSkills] = useState<SkillOption[]>([]);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentSuggestions = suggestionSets[currentSetIndex];
   const isChatting = messages.length > 0;
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
+    if (!trimmed || isStreaming) return;
     const time = getCurrentTimeLabel();
+    const assistantId = `assistant-${Date.now()}`;
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -73,21 +68,58 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
       time,
       attachments: attachedFiles,
     };
-    const assistantMessage: ChatMessage = {
-      id: `assistant-${Date.now()}`,
+    // 先放一个空占位，流式更新填充
+    const placeholderMessage: ChatMessage = {
+      id: assistantId,
       role: "assistant",
-      text: createAssistantReply(trimmed),
+      text: "",
       time,
     };
 
-    const nextMessages = [...messages, userMessage, assistantMessage];
+    const nextMessages = [...messages, userMessage, placeholderMessage];
     const nextTitle = trimmed.slice(0, 18);
     onMessagesChange?.(nextMessages, nextTitle);
     onConversationTitleChange?.(nextTitle);
     setInputValue("");
     setAttachedFiles([]);
-    textareaRef.current?.focus();
-  }, [attachedFiles, inputValue, messages, onConversationTitleChange, onMessagesChange]);
+    setIsStreaming(true);
+
+    try {
+      let replyText = "";
+      await chatApi.sendMessage(
+        trimmed,
+        "default",
+        // onDelta: 流式更新 AI 回复
+        (delta) => {
+          replyText += delta;
+          onMessagesChange?.(
+            nextMessages.map((m) =>
+              m.id === assistantId ? { ...m, text: replyText } : m,
+            ),
+            nextTitle,
+          );
+        },
+      );
+      // 确保最终文本完整
+      onMessagesChange?.(
+        nextMessages.map((m) =>
+          m.id === assistantId ? { ...m, text: replyText, time: getCurrentTimeLabel() } : m,
+        ),
+        nextTitle,
+      );
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : "AI 回复失败，请重试";
+      onMessagesChange?.(
+        nextMessages.map((m) =>
+          m.id === assistantId ? { ...m, text: errorText, time: getCurrentTimeLabel() } : m,
+        ),
+        nextTitle,
+      );
+    } finally {
+      setIsStreaming(false);
+      textareaRef.current?.focus();
+    }
+  }, [attachedFiles, inputValue, messages, onConversationTitleChange, onMessagesChange, isStreaming]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -287,11 +319,11 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
 
   const sendButton = (
     <button
-      className={`send-button${inputValue.trim() ? " send-button--active" : ""}`}
+      className={`send-button${inputValue.trim() && !isStreaming ? " send-button--active" : ""}`}
       type="button"
       title="发送"
       onClick={handleSend}
-      disabled={!inputValue.trim()}
+      disabled={!inputValue.trim() || isStreaming}
     >
       <ArrowUp size={18} />
     </button>
@@ -316,11 +348,12 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
             <textarea
               ref={textareaRef}
               className="prompt-input"
-              placeholder="随心输入，描述你想做的事情..."
+              placeholder={isStreaming ? "AI 正在回复中..." : "随心输入，描述你想做的事情..."}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
+              disabled={isStreaming}
             />
 
             <PromptToolbar
@@ -411,11 +444,12 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
               <textarea
                 ref={textareaRef}
                 className="prompt-input prompt-input--chat"
-                placeholder="随心输入"
+                placeholder={isStreaming ? "AI 正在回复中..." : "随心输入"}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
+                disabled={isStreaming}
               />
               <PromptToolbar
                 sendButton={sendButton}

@@ -1,7 +1,8 @@
 import { Activity, Bot, CheckCircle2, FolderOpen, Info, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle, Zap } from "lucide-react";
-import { forwardRef, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { StatusBadge } from "../components/StatusBadge";
 import { assistantModelDetails, assistantModels, runtimeEnvironments } from "../mocks/prototypeData";
+import { assistantModelsApi, type AssistantModelFormInput } from "../services/assistantModelsApi";
 import type { AssistantModelDetail, RuntimeEnvironmentSummary } from "../types/domain";
 
 type SettingsTab = "environment" | "assistant" | "profile";
@@ -33,7 +34,66 @@ export function SettingsPage() {
   const [modelDeleteTarget, setModelDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [isCreateEnvironmentOpen, setIsCreateEnvironmentOpen] = useState(false);
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
-  const [toast, setToast] = useState<{ name: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+
+  // 5 秒后自动消失
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const setAssistantModels = (models: AssistantModelDetail[]) => {
+    setModelList(
+      models.map(
+        ({
+          apiBaseUrl: _apiBaseUrl,
+          modelId: _modelId,
+          apiKey: _apiKey,
+          apiKeyConfigured: _apiKeyConfigured,
+          connectionStatus: _connectionStatus,
+          maxOutput: _maxOutput,
+          temperature: _temperature,
+          ...summary
+        }) => summary,
+      ),
+    );
+    setModelDetails(Object.fromEntries(models.map((model) => [model.id, model])) as Record<string, AssistantModelDetail>);
+  };
+
+  const showError = (message: string) => {
+    setToast({ message, tone: "danger" });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAssistantModels() {
+      setIsModelLoading(true);
+      try {
+        const models = await assistantModelsApi.list();
+        if (!cancelled) {
+          setAssistantModels(models);
+          setSelectedModelId((current) => (current && models.some((model) => model.id === current) ? current : null));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          showError(error instanceof Error ? error.message : "AI 助手模型列表加载失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsModelLoading(false);
+        }
+      }
+    }
+
+    loadAssistantModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleDeleteConfirm = (_scope: EnvironmentDeleteScope) => {
     if (!deleteTarget) return;
@@ -43,16 +103,24 @@ export function SettingsPage() {
 
   const handleModelDeleteConfirm = () => {
     if (!modelDeleteTarget) return;
-    setModelList((prev) => prev.filter((m) => m.id !== modelDeleteTarget.id));
-    setModelDetails((prev) => {
-      const next = { ...prev };
-      delete next[modelDeleteTarget.id];
-      return next;
-    });
-    if (selectedModelId === modelDeleteTarget.id) {
-      setSelectedModelId(null);
-    }
-    setModelDeleteTarget(null);
+    assistantModelsApi
+      .delete(modelDeleteTarget.id)
+      .then(() => {
+        setModelList((prev) => prev.filter((m) => m.id !== modelDeleteTarget.id));
+        setModelDetails((prev) => {
+          const next = { ...prev };
+          delete next[modelDeleteTarget.id];
+          return next;
+        });
+        if (selectedModelId === modelDeleteTarget.id) {
+          setSelectedModelId(null);
+        }
+        setModelDeleteTarget(null);
+      })
+      .catch((error) => {
+        showError(error instanceof Error ? error.message : "模型删除失败");
+        setModelDeleteTarget(null);
+      });
   };
 
   return (
@@ -94,10 +162,10 @@ export function SettingsPage() {
 
       <div className="settings-content">
         {toast ? (
-          <div className="settings-toast">
+          <div className={`settings-toast${toast.tone === "success" ? " settings-toast--success" : ""}`}>
             <div className="settings-toast__content">
-              <XCircle size={15} />
-              <span>检测失败：{toast.name}</span>
+              {toast.tone === "success" ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+              <span>{toast.message}</span>
             </div>
             <button
               className="settings-toast__close"
@@ -115,62 +183,129 @@ export function SettingsPage() {
             <EnvironmentSettings
               environments={envList}
               onDelete={setDeleteTarget}
-              onDetect={(name) => setToast({ name })}
+              onDetect={(name) => setToast({ message: `正在检测 ${name} ...`, tone: "success" })}
             />
           ) : null}
           {activeTab === "assistant" ? (
             <AssistantModelSettings
               models={modelList}
               modelDetails={modelDetails}
+              isLoading={isModelLoading}
               selectedModelId={selectedModelId}
               onSelectModel={setSelectedModelId}
               onBack={() => setSelectedModelId(null)}
-              onSetDefault={(modelId) => {
-                setModelList((prev) => prev.map((model) => ({ ...model, isDefault: model.id === modelId })));
-                setModelDetails((prev) =>
-                  Object.fromEntries(
-                    Object.entries(prev).map(([id, detail]) => [id, { ...detail, isDefault: id === modelId }]),
-                  ) as typeof assistantModelDetails,
-                );
+              onSetDefault={async (modelId) => {
+                try {
+                  const defaultModel = await assistantModelsApi.setDefault(modelId);
+                  setModelList((prev) =>
+                    prev.map((model) =>
+                      model.id === modelId
+                        ? {
+                            id: defaultModel.id,
+                            name: defaultModel.name,
+                            status: defaultModel.status,
+                            tone: defaultModel.tone,
+                            provider: defaultModel.provider,
+                            context: defaultModel.context,
+                            isDefault: true,
+                            variant: defaultModel.variant,
+                          }
+                        : { ...model, isDefault: false },
+                    ),
+                  );
+                  setModelDetails((prev) =>
+                    Object.fromEntries(
+                      Object.entries(prev).map(([id, detail]) => [
+                        id,
+                        id === modelId ? defaultModel : { ...detail, isDefault: false },
+                      ]),
+                    ) as typeof assistantModelDetails,
+                  );
+                } catch (error) {
+                  showError(error instanceof Error ? error.message : "设置默认模型失败");
+                }
               }}
-              onUpdateModel={(updated) => {
-                setModelList((prev) =>
-                  prev.map((model) =>
-                    model.id === updated.id
-                      ? {
-                          ...model,
-                          name: updated.name,
-                          provider: updated.provider,
-                          context: updated.context,
-                          status: updated.status,
-                          tone: updated.tone,
-                          isDefault: updated.isDefault,
-                        }
-                      : model,
-                  ),
-                );
-                setModelDetails((prev) => ({ ...prev, [updated.id]: updated }));
+              onUpdateModel={async (input) => {
+                try {
+                  const updated = await assistantModelsApi.update(input.id, input);
+                  setModelList((prev) =>
+                    prev.map((model) =>
+                      model.id === updated.id
+                        ? {
+                            ...model,
+                            name: updated.name,
+                            provider: updated.provider,
+                            context: updated.context,
+                            status: updated.status,
+                            tone: updated.tone,
+                            isDefault: updated.isDefault,
+                          }
+                        : model,
+                    ),
+                  );
+                  setModelDetails((prev) => ({ ...prev, [updated.id]: updated }));
+                } catch (error) {
+                  showError(error instanceof Error ? error.message : "模型保存失败");
+                }
               }}
               onDeleteModel={(id, name) => setModelDeleteTarget({ id, name })}
-              onTestModel={(modelName) => setToast({ name: modelName })}
+              onTestModel={async (modelId, modelName) => {
+                try {
+                  const result = await assistantModelsApi.test(modelId);
+                  const isAvailable = result.status === "available";
+                  setModelList((prev) =>
+                    prev.map((model) =>
+                      model.id === modelId
+                        ? { ...model, status: isAvailable ? "可用" : "异常", tone: isAvailable ? "success" : "danger" }
+                        : model,
+                    ),
+                  );
+                  setModelDetails((prev) => {
+                    const detail = prev[modelId];
+                    if (!detail) return prev;
+                    return {
+                      ...prev,
+                      [modelId]: {
+                        ...detail,
+                        status: isAvailable ? "可用" : "异常",
+                        tone: isAvailable ? "success" : "danger",
+                        connectionStatus: result.message,
+                      },
+                    };
+                  });
+                  setToast({
+                    message: isAvailable
+                      ? `${modelName}：连接测试通过`
+                      : `${modelName}：${result.message}`,
+                    tone: isAvailable ? "success" : "danger",
+                  });
+                } catch (error) {
+                  showError(error instanceof Error ? error.message : "模型连接测试失败");
+                }
+              }}
               isAddModelOpen={isAddModelOpen}
               onCloseAddModel={() => setIsAddModelOpen(false)}
-              onAddModel={(newModel) => {
-                setModelList((prev) => [
-                  ...prev,
-                  {
-                    id: newModel.id,
-                    name: newModel.name,
-                    status: newModel.status,
-                    tone: newModel.tone,
-                    provider: newModel.provider,
-                    context: newModel.context,
-                    isDefault: newModel.isDefault,
-                    variant: newModel.variant,
-                  },
-                ]);
-                setModelDetails((prev) => ({ ...prev, [newModel.id]: newModel }));
-                setIsAddModelOpen(false);
+              onAddModel={async (input) => {
+                try {
+                  const newModel = await assistantModelsApi.create(input);
+                  setModelList((prev) => [
+                    ...prev,
+                    {
+                      id: newModel.id,
+                      name: newModel.name,
+                      status: newModel.status,
+                      tone: newModel.tone,
+                      provider: newModel.provider,
+                      context: newModel.context,
+                      isDefault: newModel.isDefault,
+                      variant: newModel.variant,
+                    },
+                  ]);
+                  setModelDetails((prev) => ({ ...prev, [newModel.id]: newModel }));
+                  setIsAddModelOpen(false);
+                } catch (error) {
+                  showError(error instanceof Error ? error.message : "模型添加失败");
+                }
               }}
             />
           ) : null}
@@ -905,6 +1040,7 @@ function EnvironmentSettings({
 function AssistantModelSettings({
   models,
   modelDetails,
+  isLoading,
   selectedModelId,
   onSelectModel,
   onBack,
@@ -918,16 +1054,17 @@ function AssistantModelSettings({
 }: {
   models: typeof assistantModels;
   modelDetails: typeof assistantModelDetails;
+  isLoading: boolean;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   onBack: () => void;
   onSetDefault: (id: string) => void;
-  onUpdateModel: (model: AssistantModelDetail) => void;
+  onUpdateModel: (model: AssistantModelFormInput & { id: string }) => void;
   onDeleteModel: (id: string, name: string) => void;
-  onTestModel: (modelName: string) => void;
+  onTestModel: (modelId: string, modelName: string) => void;
   isAddModelOpen: boolean;
   onCloseAddModel: () => void;
-  onAddModel: (model: AssistantModelDetail) => void;
+  onAddModel: (model: AssistantModelFormInput) => void;
 }) {
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const selectedDetail: AssistantModelDetail | null =
@@ -941,6 +1078,16 @@ function AssistantModelSettings({
         <h2>模型管理</h2>
         <p>管理模型来源、连接检测、默认模型和适用场景。</p>
       </div>
+      {isLoading ? (
+        <div className="settings-empty">
+          <p>正在加载 AI 助手模型...</p>
+        </div>
+      ) : null}
+      {!isLoading && models.length === 0 ? (
+        <div className="settings-empty">
+          <p>暂无模型配置，请添加模型。</p>
+        </div>
+      ) : null}
       <div className="assistant-model-grid" aria-label="AI 助手模型列表">
         {models.map((model) => (
           <article
@@ -971,7 +1118,7 @@ function AssistantModelSettings({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onTestModel(model.name);
+                  onTestModel(model.id, model.name);
                 }}
               >
                 检测模型
@@ -998,7 +1145,15 @@ function AssistantModelSettings({
                 <Pencil size={14} />
                 编辑
               </button>
-              <button className="model-icon-action" type="button" title="删除">
+              <button
+                className="model-icon-action"
+                type="button"
+                title="删除"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteModel(model.id, model.name);
+                }}
+              >
                 <X size={15} />
               </button>
             </div>
@@ -1015,7 +1170,7 @@ function AssistantModelSettings({
           onDelete={() => onDeleteModel(selectedDetail.id, selectedDetail.name)}
           onTest={() => {
             onBack();
-            onTestModel(selectedDetail.name);
+            onTestModel(selectedDetail.id, selectedDetail.name);
           }}
         />
       ) : null}
@@ -1031,7 +1186,7 @@ function AssistantModelSettings({
           }}
           onTest={() => {
             setEditingModelId(null);
-            onTestModel(modelDetails[editingModelId].name);
+            onTestModel(modelDetails[editingModelId].id, modelDetails[editingModelId].name);
           }}
         />
       ) : null}
@@ -1041,10 +1196,6 @@ function AssistantModelSettings({
         <ModelAddDialog
           onClose={onCloseAddModel}
           onSave={onAddModel}
-          onTest={() => {
-            onCloseAddModel();
-            onTestModel("新模型");
-          }}
         />
       ) : null}
     </section>
@@ -1055,24 +1206,19 @@ function AssistantModelSettings({
 function ModelAddDialog({
   onClose,
   onSave,
-  onTest,
 }: {
   onClose: () => void;
-  onSave: (model: AssistantModelDetail) => void;
-  onTest: () => void;
+  onSave: (model: AssistantModelFormInput) => void;
 }) {
-  const id = `assistant-custom-${Date.now()}`;
   const [form, setForm] = useState({
-    name: "qwen-plus",
-    provider: "阿里云百炼",
-    apiBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    modelId: "qwen-plus",
+    name: "",
+    vendor: "",
+    apiBaseUrl: "https://api.deepseek.com/v1",
+    modelId: "",
     apiKey: "",
-    context: "上下文 128K",
-    maxOutputLength: "4,096",
-    temperature: "0.7",
-    timeout: "60s",
-    retryCount: "1",
+    contextLength: "128K",
+    maxOutput: "8,192",
+    temperature: "0.6",
   });
 
   const updateForm = (key: keyof typeof form, value: string) => {
@@ -1083,29 +1229,18 @@ function ModelAddDialog({
     const name = form.name.trim();
     if (!name) return;
 
-    const provider = form.provider.trim() || "自定义";
-    const contextValue = form.context.trim();
-    const timeoutValue = form.timeout.trim();
-    const apiKey = form.apiKey.trim();
+    const vendor = form.vendor.trim() || "自定义";
+    const contextValue = form.contextLength.trim();
 
     onSave({
-      id,
       name,
-      status: "待检测",
-      tone: "warning",
-      provider,
-      context: contextValue.startsWith("上下文") ? contextValue : `上下文 ${contextValue || "128K"}`,
-      isDefault: false,
-      variant: "blue",
+      vendor,
+      contextLength: contextValue || "128K",
       apiBaseUrl: form.apiBaseUrl.trim(),
       modelId: form.modelId.trim(),
-      apiKey,
-      apiKeyConfigured: apiKey.length > 0,
-      connectionStatus: "待检测",
-      maxOutputLength: form.maxOutputLength.trim() || "4,096",
-      temperature: form.temperature.trim() || "0.7",
-      timeout: timeoutValue.endsWith("s") ? timeoutValue : `${timeoutValue || "60"}s`,
-      retryCount: Number.parseInt(form.retryCount, 10) || 1,
+      apiKey: form.apiKey.trim(),
+      maxOutput: form.maxOutput.trim() || "8,192",
+      temperature: form.temperature.trim() || "0.6",
     });
   };
 
@@ -1133,9 +1268,9 @@ function ModelAddDialog({
             </h3>
             <div className="model-edit-grid">
               <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
-              <ModelEditField label="模型厂商" value={form.provider} onChange={(value) => updateForm("provider", value)} />
+              <ModelEditField label="模型厂商" value={form.vendor} onChange={(value) => updateForm("vendor", value)} placeholder="例如：DeepSeek、阿里云百炼" />
               <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
-              <ModelEditField label="模型标识" value={form.modelId} onChange={(value) => updateForm("modelId", value)} />
+              <ModelEditField label="Model ID" value={form.modelId} onChange={(value) => updateForm("modelId", value)} placeholder="例如：deepseek-v4-flash" />
               <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
             </div>
           </section>
@@ -1146,20 +1281,15 @@ function ModelAddDialog({
               生成参数
             </h3>
             <div className="model-edit-grid">
-              <ModelEditField label="上下文长度" value={form.context} onChange={(value) => updateForm("context", value)} />
-              <ModelEditField label="最大输出长度" value={form.maxOutputLength} onChange={(value) => updateForm("maxOutputLength", value)} />
+              <ModelEditField label="上下文长度" value={form.contextLength} onChange={(value) => updateForm("contextLength", value)} placeholder="例如：128K、1M 或 131072" />
+              <ModelEditField label="最大输出长度" value={form.maxOutput} onChange={(value) => updateForm("maxOutput", value)} placeholder="例如：8,192" />
               <ModelEditField label="Temperature" value={form.temperature} onChange={(value) => updateForm("temperature", value)} />
-              <ModelEditField label="超时时间" value={form.timeout} onChange={(value) => updateForm("timeout", value)} />
-              <ModelEditField label="重试次数" value={form.retryCount} onChange={(value) => updateForm("retryCount", value)} />
             </div>
           </section>
         </div>
 
         <footer className="model-edit-dialog__footer">
-          <button className="settings-action-button" onClick={onTest} type="button">
-            <Activity size={15} />
-            连接测试
-          </button>
+          <div />
           <div className="model-edit-dialog__actions">
             <button className="settings-action-button" onClick={onClose} type="button">
               取消
@@ -1277,19 +1407,11 @@ function ModelDetail({
               </div>
               <div className="model-detail-info-item">
                 <span className="model-detail-info-label">最大输出长度</span>
-                <span className="model-detail-info-value">{detail.maxOutputLength}</span>
+                <span className="model-detail-info-value">{detail.maxOutput}</span>
               </div>
               <div className="model-detail-info-item">
                 <span className="model-detail-info-label">Temperature</span>
                 <span className="model-detail-info-value">{detail.temperature}</span>
-              </div>
-              <div className="model-detail-info-item">
-                <span className="model-detail-info-label">超时时间</span>
-                <span className="model-detail-info-value">{detail.timeout}</span>
-              </div>
-              <div className="model-detail-info-item">
-                <span className="model-detail-info-label">重试次数</span>
-                <span className="model-detail-info-value">{detail.retryCount}</span>
               </div>
               <div className="model-detail-info-item">
                 <span className="model-detail-info-label">默认模型</span>
@@ -1330,20 +1452,18 @@ function ModelEditDialog({
 }: {
   detail: AssistantModelDetail;
   onClose: () => void;
-  onSave: (model: AssistantModelDetail) => void;
+  onSave: (model: AssistantModelFormInput & { id: string }) => void;
   onTest: () => void;
 }) {
   const [form, setForm] = useState({
     name: detail.name,
-    provider: detail.provider,
+    vendor: detail.provider,
     apiBaseUrl: detail.apiBaseUrl,
     modelId: detail.modelId,
-    apiKey: detail.apiKeyConfigured ? detail.apiKey : "",
-    context: detail.context.replace(/^上下文\s*/, ""),
-    maxOutputLength: detail.maxOutputLength.replace(/,/g, ""),
+    apiKey: "",
+    contextLength: detail.context.replace(/^上下文\s*/, ""),
+    maxOutput: detail.maxOutput.replace(/,/g, ""),
     temperature: detail.temperature,
-    timeout: detail.timeout.replace(/s$/i, ""),
-    retryCount: String(detail.retryCount),
   });
 
   const updateForm = (key: keyof typeof form, value: string) => {
@@ -1351,21 +1471,17 @@ function ModelEditDialog({
   };
 
   const handleSave = () => {
-    const contextValue = form.context.trim();
-    const timeoutValue = form.timeout.trim();
+    const contextValue = form.contextLength.trim();
     onSave({
-      ...detail,
+      id: detail.id,
       name: form.name.trim() || detail.name,
-      provider: form.provider.trim() || detail.provider,
+      vendor: form.vendor.trim() || detail.provider,
       apiBaseUrl: form.apiBaseUrl.trim(),
       modelId: form.modelId.trim(),
       apiKey: form.apiKey,
-      apiKeyConfigured: form.apiKey.trim().length > 0,
-      context: contextValue.startsWith("上下文") ? contextValue : `上下文 ${contextValue || "128K"}`,
-      maxOutputLength: form.maxOutputLength.trim() || detail.maxOutputLength,
+      contextLength: contextValue || "128K",
+      maxOutput: form.maxOutput.trim() || detail.maxOutput,
       temperature: form.temperature.trim() || detail.temperature,
-      timeout: timeoutValue.endsWith("s") ? timeoutValue : `${timeoutValue || "60"}s`,
-      retryCount: Number.parseInt(form.retryCount, 10) || detail.retryCount,
     });
   };
 
@@ -1395,7 +1511,7 @@ function ModelEditDialog({
                 <h3>{form.name || detail.name}</h3>
                 <StatusBadge label={detail.status} tone={detail.tone} />
               </div>
-              <p>{form.provider || detail.provider}</p>
+              <p>{form.vendor || detail.provider}</p>
             </div>
           </div>
 
@@ -1406,9 +1522,9 @@ function ModelEditDialog({
             </h3>
             <div className="model-edit-grid">
               <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
-              <ModelEditField label="模型厂商" value={form.provider} onChange={(value) => updateForm("provider", value)} />
+              <ModelEditField label="模型厂商" value={form.vendor} onChange={(value) => updateForm("vendor", value)} placeholder="例如：DeepSeek、阿里云百炼" />
               <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
-              <ModelEditField label="模型标识" value={form.modelId} onChange={(value) => updateForm("modelId", value)} />
+              <ModelEditField label="Model ID" value={form.modelId} onChange={(value) => updateForm("modelId", value)} placeholder="例如：deepseek-v4-flash" />
               <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
             </div>
           </section>
@@ -1419,11 +1535,9 @@ function ModelEditDialog({
               生成参数
             </h3>
             <div className="model-edit-grid">
-              <ModelEditField label="上下文长度" value={form.context} onChange={(value) => updateForm("context", value)} />
-              <ModelEditField label="最大输出长度" value={form.maxOutputLength} onChange={(value) => updateForm("maxOutputLength", value)} />
+              <ModelEditField label="上下文长度" value={form.contextLength} onChange={(value) => updateForm("contextLength", value)} placeholder="例如：128K、1M 或 131072" />
+              <ModelEditField label="最大输出长度" value={form.maxOutput} onChange={(value) => updateForm("maxOutput", value)} placeholder="例如：8,192" />
               <ModelEditField label="Temperature" value={form.temperature} onChange={(value) => updateForm("temperature", value)} />
-              <ModelEditField label="超时时间" value={form.timeout} onChange={(value) => updateForm("timeout", value)} />
-              <ModelEditField label="重试次数" value={form.retryCount} onChange={(value) => updateForm("retryCount", value)} />
             </div>
           </section>
         </div>
@@ -1454,17 +1568,19 @@ function ModelEditField({
   onChange,
   type = "text",
   className = "",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: "password" | "text";
   className?: string;
+  placeholder?: string;
 }) {
   return (
     <label className={`model-edit-field${className ? ` ${className}` : ""}`}>
       <span>{label}</span>
-      <input onChange={(e) => onChange(e.target.value)} title={value} type={type} value={value} />
+      <input onChange={(e) => onChange(e.target.value)} title={value} type={type} value={value} placeholder={placeholder} />
     </label>
   );
 }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +8,13 @@ const isMac = process.platform === "darwin";
 const isWindows = process.platform === "win32";
 
 let mainWindow: BrowserWindow | null = null;
+
+const PREFERRED_WINDOW_SIZE = {
+  width: 1180,
+  height: 700,
+  minWidth: 1100,
+  minHeight: 640,
+};
 
 function getProductionIndexPath() {
   return path.join(__dirname, "../../dist/index.html");
@@ -22,11 +29,21 @@ function isAllowedNavigation(url: string) {
 }
 
 function createWindow() {
+  const { workAreaSize } = screen.getPrimaryDisplay();
+  const windowWidth = Math.min(PREFERRED_WINDOW_SIZE.width, workAreaSize.width);
+  const windowHeight = Math.min(PREFERRED_WINDOW_SIZE.height, workAreaSize.height);
+  const minWidth = Math.min(PREFERRED_WINDOW_SIZE.minWidth, workAreaSize.width);
+  const minHeight = Math.min(PREFERRED_WINDOW_SIZE.minHeight, workAreaSize.height);
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 760,
-    minWidth: 1100,
-    minHeight: 720,
+    width: windowWidth,
+    height: windowHeight,
+    useContentSize: true,
+    minWidth,
+    minHeight,
+    resizable: true,
+    maximizable: true,
+    fullscreenable: true,
     title: "",
     frame: true,
     titleBarStyle: "default",

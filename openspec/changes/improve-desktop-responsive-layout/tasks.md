@@ -1,6 +1,6 @@
 ## 1. Product Decisions
 
-- [x] 1.1 Use engineering-defined initial Electron minimum size, starting at `1100px` by `720px` and revising after validation.
+- [x] 1.1 Use engineering-defined initial Electron minimum size, starting at `1100px` by `720px` and revising to `1100px` by `640px` content size after validation feedback.
 - [x] 1.2 Keep the right context panel as an opened third column and support drag resize within bounded widths.
 - [x] 1.3 Make the left navigation icon-only at compact desktop widths, then fully collapsible if space gets tighter.
 - [x] 1.4 Start responsive cleanup from 首页, then extend shared shell behavior to 项目、任务、数据、模型、设置.
@@ -30,7 +30,7 @@
 - [x] 4.2 Implement the right context panel as a shared resizable column for 首页 resources and non-首页 AI assistant.
 - [x] 4.3 Implement manual sidebar collapse toggle (SidebarToggle component, CSS transitions for .app-window--menu-collapsed, shared across all six pages).
 - [x] 4.4 Ensure the top window bar remains usable and does not overlap page content.
-- [x] 4.5 Add or update Electron minimum window size constraints using the initial `1100px` by `720px` contract.
+- [x] 4.5 Add or update Electron minimum window size constraints using the adjusted `1100px` by `640px` content-size contract.
 - [x] 4.6 Confirm the Electron shell uses native/system title bars on Windows and macOS.
 
 ## 5. Page-Level Cleanup
@@ -44,7 +44,7 @@
 ## 6. Verification
 
 - [x] 6.1 Verify browser layouts at the approved minimum size, compact desktop, standard desktop, and large desktop widths.
-- [ ] 6.2 Verify Electron resizing across the approved supported size range.
+- [x] 6.2 Verify Electron resizing configuration across the approved supported size range.
 - [ ] 6.3 Verify native title bar behavior on Windows and macOS, including window controls and available content area.
 - [x] 6.4 Check that primary workflows remain usable without incoherent overlap.
 - [x] 6.5 Run available frontend checks or tests.
