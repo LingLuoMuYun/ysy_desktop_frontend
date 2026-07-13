@@ -187,6 +187,61 @@ function parseFormPreview(rawCode: string, language: string): FormPreviewModel |
   };
 }
 
+function cleanMarkdownLabel(value: string) {
+  return value
+    .replace(/^[#>\s|\-–—:：]+/, "")
+    .replace(/[*_`[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseCheckboxOptions(line: string): FormFieldOption[] | undefined {
+  const optionMatches = Array.from(line.matchAll(/[□☐☑☒]\s*([^□☐☑☒|，,。；;]+)/g));
+  const options = optionMatches
+    .map((match) => cleanMarkdownLabel(match[1] ?? ""))
+    .filter(Boolean);
+
+  return options.length > 0 ? options : undefined;
+}
+
+function parseMarkdownFormPreview(markdown: string): FormPreviewModel | null {
+  const lines = markdown.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  const titleLine = lines.find((line) => /^#{1,4}\s+/.test(line));
+  const title = titleLine ? cleanMarkdownLabel(titleLine.replace(/^#{1,4}\s+/, "")) : "表单预览";
+  const fields: FormFieldPreview[] = [];
+  const seen = new Set<string>();
+
+  for (const line of lines) {
+    const labelMatches = Array.from(line.matchAll(/\*\*([^*]+)\*\*/g));
+    for (const match of labelMatches) {
+      const label = cleanMarkdownLabel(match[1] ?? "");
+      if (!label || seen.has(label)) continue;
+
+      const options = parseCheckboxOptions(line);
+      fields.push({
+        name: label,
+        label,
+        type: options ? "select" : "text",
+        value: "",
+        options,
+      });
+      seen.add(label);
+    }
+  }
+
+  const hasFormSignal = /表|申请|请假|登记|信息|草稿|字段/.test(title)
+    || fields.some((field) => /姓名|名称|日期|天数|类型|理由|班级|学号|电话|邮箱|地址|项目|任务|环境|模型|数据/.test(field.label));
+
+  if (fields.length < 2 || !hasFormSignal) return null;
+
+  return {
+    title,
+    fields,
+  };
+}
+
 function FormPreview({ model }: { model: FormPreviewModel }) {
   return (
     <section className="ai-form-preview" aria-label={model.title}>
@@ -203,7 +258,7 @@ function FormPreview({ model }: { model: FormPreviewModel }) {
               {field.required ? <em>*</em> : null}
             </span>
             {field.type === "select" && field.options?.length ? (
-              <select value={stringifyFieldValue(field.value)} disabled>
+              <select value={stringifyFieldValue(field.value) || normalizeOption(field.options[0]).value} disabled>
                 {field.options.map((option) => {
                   const normalized = normalizeOption(option);
                   return (
@@ -243,6 +298,7 @@ function FormPreview({ model }: { model: FormPreviewModel }) {
  */
 export function MarkdownRenderer({ content, isStreaming = false }: MarkdownRendererProps) {
   const isEmpty = useMemo(() => content.trim().length === 0, [content]);
+  const markdownFormPreview = useMemo(() => parseMarkdownFormPreview(content), [content]);
 
   // 空内容：不渲染任何内容
   if (isEmpty) {
@@ -252,6 +308,16 @@ export function MarkdownRenderer({ content, isStreaming = false }: MarkdownRende
   // 流式中：纯文本展示，避免不完整 Markdown 解析问题
   if (isStreaming) {
     return <p className="markdown-body markdown-body--streaming">{content}</p>;
+  }
+
+  if (markdownFormPreview) {
+    return (
+      <MarkdownErrorBoundary content={content}>
+        <div className="markdown-body">
+          <FormPreview model={markdownFormPreview} />
+        </div>
+      </MarkdownErrorBoundary>
+    );
   }
 
   // 完整渲染 Markdown（含错误边界保护）
@@ -266,7 +332,10 @@ export function MarkdownRenderer({ content, isStreaming = false }: MarkdownRende
               const codeElement = isValidElement<CodeElementProps>(children) ? children : null;
               const codeText = extractText(codeElement?.props.children).trim();
               const language = getCodeLanguage(codeElement?.props.className);
-              const formPreview = parseFormPreview(codeText, language);
+              const formPreview = parseFormPreview(codeText, language)
+                ?? (["markdown", "md", "text", ""].includes(language.toLowerCase())
+                  ? parseMarkdownFormPreview(codeText)
+                  : null);
 
               if (formPreview) {
                 return <FormPreview model={formPreview} />;

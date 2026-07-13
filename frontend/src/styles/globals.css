@@ -522,13 +522,17 @@ body {
   flex-direction: column;
   gap: 22px;
   min-height: 0;
+  min-width: 0;
   padding: 34px min(10vw, 118px) 32px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .chat-message {
   display: grid;
   gap: 8px;
+  width: fit-content;
+  min-width: 0;
   max-width: min(760px, 78%);
   color: #2f3745;
   font-size: 14px;
@@ -539,6 +543,7 @@ body {
   justify-self: end;
   align-self: flex-end;
   justify-items: end;
+  width: fit-content;
   max-width: min(420px, 70%);
 }
 
@@ -549,7 +554,9 @@ body {
 }
 
 .chat-message__bubble {
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   overflow-wrap: anywhere;
 }
 
@@ -635,6 +642,10 @@ body {
 /* ---- Markdown 渲染样式 ---- */
 
 .markdown-body {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-size: 14px;
   line-height: 1.75;
@@ -654,7 +665,9 @@ body {
   border-radius: 8px;
 }
 .markdown-body__raw {
+  max-width: 100%;
   margin: 0;
+  overflow-x: auto;
   font-size: 13px;
   font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
   line-height: 1.6;
@@ -717,6 +730,8 @@ body {
 
 /* 代码块容器 */
 .markdown-body pre {
+  box-sizing: border-box;
+  max-width: 100%;
   margin: 10px 0;
   padding: 14px 16px;
   overflow-x: auto;
@@ -727,6 +742,7 @@ body {
   border-radius: 8px;
 }
 .markdown-body pre code {
+  white-space: pre;
   padding: 0;
   font-size: inherit;
   font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
@@ -739,6 +755,9 @@ body {
 .ai-form-preview {
   display: grid;
   gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   margin: 12px 0;
   padding: 14px;
   color: #263241;
@@ -780,7 +799,7 @@ body {
 
 .ai-form-preview__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 12px;
 }
 
