@@ -9,7 +9,7 @@ const API_BASE_CANDIDATES = import.meta.env.DEV && API_BASE !== ""
 export interface ChatStreamDelta {
   type: "delta";
   content: string;
-  sequence: number;
+  sequence?: number;
 }
 
 export interface ChatStreamReasoning {
@@ -65,6 +65,26 @@ export interface SessionSummary {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function normalizeDeltaContent(currentReply: string, incomingContent: string) {
+  if (!incomingContent) {
+    return { nextReply: currentReply, chunk: "" };
+  }
+
+  if (incomingContent === currentReply) {
+    return { nextReply: currentReply, chunk: "" };
+  }
+
+  if (incomingContent.startsWith(currentReply)) {
+    const chunk = incomingContent.slice(currentReply.length);
+    return { nextReply: incomingContent, chunk };
+  }
+
+  return {
+    nextReply: `${currentReply}${incomingContent}`,
+    chunk: incomingContent,
+  };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -245,6 +265,7 @@ export async function sendMessage(
   const decoder = new TextDecoder();
   let buffer = "";
   let fullReply = "";
+  let lastDeltaSequence: number | undefined;
   let finalResult: SendMessageResult = { reply: "", conversationId };
 
   while (true) {
@@ -263,8 +284,17 @@ export async function sendMessage(
       try {
         const event: ChatStreamEvent = JSON.parse(trimmed);
         if (event.type === "delta") {
-          fullReply += event.content;
-          onDelta?.(event.content);
+          if (typeof event.sequence === "number" && event.sequence === lastDeltaSequence) {
+            continue;
+          }
+          if (typeof event.sequence === "number") {
+            lastDeltaSequence = event.sequence;
+          }
+          const { nextReply, chunk } = normalizeDeltaContent(fullReply, event.content);
+          fullReply = nextReply;
+          if (chunk) {
+            onDelta?.(chunk);
+          }
         } else if (event.type === "reasoning" && onReasoning) {
           onReasoning(event.content);
         } else if (event.type === "done") {

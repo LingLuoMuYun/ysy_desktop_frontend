@@ -94,7 +94,7 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
 
     try {
       let replyText = "";
-      await chatApi.sendMessage(
+      const result = await chatApi.sendMessage(
         trimmed,
         "default",
         // onDelta: 流式更新 AI 回复
@@ -109,9 +109,10 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
         },
       );
       // 确保最终文本完整
+      const finalReply = result.reply || replyText;
       onMessagesChange?.(
         nextMessages.map((m) =>
-          m.id === assistantId ? { ...m, text: replyText, time: getCurrentTimeLabel() } : m,
+          m.id === assistantId ? { ...m, text: finalReply, time: getCurrentTimeLabel() } : m,
         ),
         nextTitle,
       );
