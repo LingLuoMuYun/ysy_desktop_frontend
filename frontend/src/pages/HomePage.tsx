@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { ArrowUp, Link2, Lightbulb, RefreshCw, X } from "lucide-react";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect, type SkillOption } from "../components/PromptToolbar";
+import { useTypewriterStream } from "../hooks/useTypewriterStream";
 import { suggestionSets, type SuggestionItem } from "../mocks/prototypeData";
 import { chatApi } from "../services/chatApi";
 
@@ -53,13 +54,37 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
   const [isFading, setIsFading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeStreamRef = useRef<{
+    assistantId: string;
+    baseMessages: ChatMessage[];
+    title: string;
+    displayedText: string;
+  } | null>(null);
 
   const currentSuggestions = suggestionSets[currentSetIndex];
   const isChatting = messages.length > 0;
 
+  const updateActiveAssistantText = useCallback((text: string) => {
+    const stream = activeStreamRef.current;
+    if (!stream || !text) return;
+
+    stream.displayedText += text;
+    onMessagesChange?.(
+      stream.baseMessages.map((message) =>
+        message.id === stream.assistantId
+          ? { ...message, text: stream.displayedText }
+          : message,
+      ),
+      stream.title,
+    );
+  }, [onMessagesChange]);
+
+  const typewriter = useTypewriterStream(updateActiveAssistantText);
+
   const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
     if (!trimmed || isStreaming) return;
+    typewriter.reset();
     const time = getCurrentTimeLabel();
     const assistantId = `assistant-${Date.now()}`;
     const userMessage: ChatMessage = {
@@ -79,6 +104,12 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
 
     const nextMessages = [...messages, userMessage, placeholderMessage];
     const nextTitle = trimmed.slice(0, 18);
+    activeStreamRef.current = {
+      assistantId,
+      baseMessages: nextMessages,
+      title: nextTitle,
+      displayedText: "",
+    };
     onMessagesChange?.(nextMessages, nextTitle);
     onConversationTitleChange?.(nextTitle);
     setInputValue("");
@@ -86,29 +117,21 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
     setIsStreaming(true);
 
     try {
-      let replyText = "";
-      await chatApi.sendMessage(
+      const result = await chatApi.sendMessage(
         trimmed,
         "default",
-        // onDelta: 流式更新 AI 回复
-        (delta) => {
-          replyText += delta;
-          onMessagesChange?.(
-            nextMessages.map((m) =>
-              m.id === assistantId ? { ...m, text: replyText } : m,
-            ),
-            nextTitle,
-          );
-        },
+        (delta) => typewriter.enqueue(delta),
       );
-      // 确保最终文本完整
+      typewriter.flush();
+      const finalText = result.reply || activeStreamRef.current?.displayedText || "";
       onMessagesChange?.(
         nextMessages.map((m) =>
-          m.id === assistantId ? { ...m, text: replyText, time: getCurrentTimeLabel() } : m,
+          m.id === assistantId ? { ...m, text: finalText, time: getCurrentTimeLabel() } : m,
         ),
         nextTitle,
       );
     } catch (error) {
+      typewriter.flush();
       const errorText = error instanceof Error ? error.message : "AI 回复失败，请重试";
       onMessagesChange?.(
         nextMessages.map((m) =>
@@ -118,9 +141,18 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
       );
     } finally {
       setIsStreaming(false);
+      activeStreamRef.current = null;
       textareaRef.current?.focus();
     }
-  }, [attachedFiles, inputValue, messages, onConversationTitleChange, onMessagesChange, isStreaming]);
+  }, [
+    attachedFiles,
+    inputValue,
+    isStreaming,
+    messages,
+    onConversationTitleChange,
+    onMessagesChange,
+    typewriter,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

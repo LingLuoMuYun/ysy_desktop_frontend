@@ -34,12 +34,24 @@ export interface ChatStreamDone {
   event_id?: string;
 }
 
-export type ChatStreamEvent = ChatStreamDelta | ChatStreamReasoning | ChatStreamDone;
+export interface ChatStreamError {
+  type: "error";
+  ok?: false;
+  error?: string;
+  message?: string;
+}
+
+export type ChatStreamEvent = ChatStreamDelta | ChatStreamReasoning | ChatStreamDone | ChatStreamError;
 
 export interface SendMessageResult {
   reply: string;
   conversationId: string;
   sessionKey?: string;
+}
+
+interface StreamAccumulator {
+  text: string;
+  lastSequence: number | null;
 }
 
 export interface SessionSummary {
@@ -55,6 +67,45 @@ export interface SessionSummary {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function normalizeStreamDelta(
+  accumulator: StreamAccumulator,
+  content: string,
+  sequence?: number,
+) {
+  if (!content) return "";
+
+  if (
+    typeof sequence === "number" &&
+    accumulator.lastSequence !== null &&
+    sequence <= accumulator.lastSequence
+  ) {
+    return "";
+  }
+
+  if (typeof sequence === "number") {
+    accumulator.lastSequence = sequence;
+  }
+
+  const current = accumulator.text;
+  let delta = content;
+
+  if (content.startsWith(current)) {
+    delta = content.slice(current.length);
+  } else if (current.endsWith(content)) {
+    delta = "";
+  }
+
+  if (delta) {
+    accumulator.text += delta;
+  }
+
+  return delta;
+}
+
+function resolveFinalReply(streamText: string, finalReply: string) {
+  return finalReply || streamText;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -161,7 +212,7 @@ export async function sendMessage(
 
   const decoder = new TextDecoder();
   let buffer = "";
-  let fullReply = "";
+  const accumulator: StreamAccumulator = { text: "", lastSequence: null };
   let finalResult: SendMessageResult = { reply: "", conversationId };
 
   while (true) {
@@ -180,31 +231,39 @@ export async function sendMessage(
       try {
         const event: ChatStreamEvent = JSON.parse(trimmed);
         if (event.type === "delta") {
-          fullReply += event.content;
-          onDelta?.(event.content);
+          const delta = normalizeStreamDelta(accumulator, event.content, event.sequence);
+          onDelta?.(delta);
         } else if (event.type === "reasoning" && onReasoning) {
           onReasoning(event.content);
         } else if (event.type === "done") {
           if (event.ok) {
-            // 防御：如果 done.reply 和已流式累加的内容相同，不做替换
-            // 避免后端在 delta 和 done 中重复返回相同完整文本导致的潜在问题
-            fullReply = event.reply && event.reply !== fullReply ? event.reply : fullReply;
+            const reply = resolveFinalReply(accumulator.text, event.reply);
+            accumulator.text = reply;
             finalResult = {
-              reply: fullReply,
+              reply,
               conversationId: event.conversation_id,
               sessionKey: event.session_key,
             };
           } else {
             throw new Error(event.stop_reason || "对话处理失败");
           }
+        } else if (event.type === "error") {
+          throw new Error(event.error || event.message || "对话处理失败");
         }
       } catch (error) {
-        // 跳过解析失败的行（可能是 JSON 不完整），除非是业务错误
-        if (error instanceof Error && error.message.includes("对话")) {
+        // 跳过解析失败的行（可能是 JSON 不完整），但业务错误必须抛出
+        if (error instanceof SyntaxError) {
+          continue;
+        }
+        if (error instanceof Error) {
           throw error;
         }
       }
     }
+  }
+
+  if (!finalResult.reply && accumulator.text) {
+    finalResult = { ...finalResult, reply: accumulator.text };
   }
 
   return finalResult;

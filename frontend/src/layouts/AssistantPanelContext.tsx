@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useTypewriterStream } from "../hooks/useTypewriterStream";
 import { assistantModelsApi } from "../services/assistantModelsApi";
 import { chatApi } from "../services/chatApi";
 import type { AssistantModelDetail } from "../types/domain";
@@ -90,6 +91,10 @@ export function AssistantPanelProvider({
   const [assistMode, setAssistMode] = useState<AssistMode>("assist");
   const [selectedProject, setSelectedProject] = useState("none");
   const msgCounter = useRef(0);
+  const activeStreamRef = useRef<{
+    assistantId: string;
+    displayedText: string;
+  } | null>(null);
   const loadModels = useCallback(async () => {
     const models = await assistantModelsApi.list();
     setModelList(models);
@@ -122,16 +127,35 @@ export function AssistantPanelProvider({
     return () => { cancelled = true; };
   }, []);
 
+  const updateActiveAssistantText = useCallback((text: string) => {
+    const stream = activeStreamRef.current;
+    if (!stream || !text) return;
+
+    stream.displayedText += text;
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === stream.assistantId
+          ? { ...message, text: stream.displayedText }
+          : message,
+      ),
+    );
+  }, []);
+
+  const typewriter = useTypewriterStream(updateActiveAssistantText);
+
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
+    typewriter.reset();
 
     const time = getTimeLabel();
     const id = msgCounter.current++;
     const userMsg: PanelMessage = { id: `user-${id}`, role: "user", text: trimmed, time };
+    const assistantId = `assistant-${id}`;
 
     // 先添加用户消息，AI 消息用占位
-    const assistantMsg: PanelMessage = { id: `assistant-${id}`, role: "assistant", text: "", time };
+    const assistantMsg: PanelMessage = { id: assistantId, role: "assistant", text: "", time };
+    activeStreamRef.current = { assistantId, displayedText: "" };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
@@ -146,42 +170,35 @@ export function AssistantPanelProvider({
       const result = await chatApi.sendMessage(
         fullMessage,
         "default",
-        // onDelta: 流式更新 AI 回复
-        (delta) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
-              updated[updated.length - 1] = { ...last, text: last.text + delta };
-            }
-            return updated;
-          });
-        },
+        (delta) => typewriter.enqueue(delta),
       );
 
-      // 确保最终文本完整
+      typewriter.flush();
+      const finalText = result.reply || activeStreamRef.current?.displayedText || "";
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
-        if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
-          updated[updated.length - 1] = { ...last, text: result.reply || last.text, time };
+        if (last && last.role === "assistant" && last.id === assistantId) {
+          updated[updated.length - 1] = { ...last, text: finalText, time };
         }
         return updated;
       });
     } catch (error) {
+      typewriter.flush();
       const errorText = error instanceof Error ? error.message : "AI 回复失败";
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
-        if (last && last.role === "assistant" && last.id === `assistant-${id}`) {
+        if (last && last.role === "assistant" && last.id === assistantId) {
           updated[updated.length - 1] = { ...last, text: errorText, time };
         }
         return updated;
       });
     } finally {
       setIsStreaming(false);
+      activeStreamRef.current = null;
     }
-  }, [messages, isStreaming]);
+  }, [messages, isStreaming, typewriter]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
