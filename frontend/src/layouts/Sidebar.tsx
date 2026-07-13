@@ -1,4 +1,4 @@
-import appIconUrl from "../assets/app-icon.svg";
+import appIconUrl from "../assets/app-icon.png";
 import { routes, type RouteKey } from "../app/router";
 
 interface SidebarProps {

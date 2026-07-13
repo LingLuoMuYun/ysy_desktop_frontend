@@ -195,7 +195,7 @@ const PREFERRED_WINDOW_SIZE = {
 };
 
 function getAppIconPath() {
-  return path.join(__dirname, "../../resources/app-icon.svg");
+  return path.join(__dirname, "../../resources/icon.ico");
 }
 
 function getProductionIndexPath() {

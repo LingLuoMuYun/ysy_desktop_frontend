@@ -171,7 +171,7 @@ const PREFERRED_WINDOW_SIZE = {
     minHeight: 640,
 };
 function getAppIconPath() {
-    return path.join(__dirname, "../../resources/app-icon.svg");
+    return path.join(__dirname, "../../resources/icon.ico");
 }
 function getProductionIndexPath() {
     return path.join(__dirname, "../../dist/index.html");
