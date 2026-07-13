@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Link2, Lightbulb, RefreshCw, X } from "lucide-react";
+import { ArrowUp, Lightbulb, RefreshCw, X } from "lucide-react";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect, type SkillOption } from "../components/PromptToolbar";
 import { useAssistantPanel } from "../layouts/AssistantPanelContext";
@@ -29,6 +29,23 @@ interface ChatAttachment {
   file?: File;
 }
 
+interface FileFormatIconMeta {
+  label: string;
+  title: string;
+  tone: "markdown" | "default";
+}
+
+const FILE_FORMAT_ICONS: Record<string, FileFormatIconMeta> = {
+  md: { label: "MD", title: "Markdown 文件", tone: "markdown" },
+  markdown: { label: "MD", title: "Markdown 文件", tone: "markdown" },
+};
+
+const DEFAULT_FILE_FORMAT_ICON: FileFormatIconMeta = {
+  label: "FILE",
+  title: "文件",
+  tone: "default",
+};
+
 interface HomePageProps {
   /** 当前会话消息由 AppShell 注入，便于历史栏、新对话和顶部标题保持同步。 */
   messages?: ChatMessage[];
@@ -43,6 +60,35 @@ function getCurrentTimeLabel() {
     minute: "2-digit",
     hour12: false,
   }).format(new Date());
+}
+
+function getAttachmentExtension(attachment: ChatAttachment) {
+  const source = attachment.name || attachment.path.split(/[\\/]/).pop() || "";
+  const cleanSource = source.split(/[?#]/)[0] ?? "";
+  const dotIndex = cleanSource.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === cleanSource.length - 1) return "";
+  return cleanSource.slice(dotIndex + 1).toLowerCase();
+}
+
+function AttachmentFormatIcon({ attachment }: { attachment: ChatAttachment }) {
+  const extension = getAttachmentExtension(attachment);
+  const icon = FILE_FORMAT_ICONS[extension] ?? DEFAULT_FILE_FORMAT_ICON;
+
+  return (
+    <span
+      className={`file-format-icon file-format-icon--${icon.tone}`}
+      aria-hidden="true"
+      title={icon.title}
+    >
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path className="file-format-icon__sheet" d="M6 2.75h8.25L19 7.5v13.75H6V2.75Z" />
+        <path className="file-format-icon__fold" d="M14.25 2.75V7.5H19" />
+        <text className="file-format-icon__label" x="12" y="16.2" textAnchor="middle">
+          {icon.label}
+        </text>
+      </svg>
+    </span>
+  );
 }
 
 export function HomePage({ messages = [], onConversationTitleChange, onMessagesChange }: HomePageProps = {}) {
@@ -282,8 +328,8 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
             onClick={handleAttachmentClick(file)}
             onKeyDown={handleAttachmentKeyDown(file)}
           >
-            <Link2 size={13} />
-            <span>{file.name}</span>
+            <AttachmentFormatIcon attachment={file} />
+            <span className="prompt-attachment__name">{file.name}</span>
           </button>
           <button
             className="prompt-attachment__remove"
@@ -447,8 +493,8 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
                           onClick={handleAttachmentClick(attachment)}
                           onKeyDown={handleAttachmentKeyDown(attachment)}
                         >
-                          <Link2 size={13} />
-                          <span>{attachment.name}</span>
+                          <AttachmentFormatIcon attachment={attachment} />
+                          <span className="chat-message__attachment-name">{attachment.name}</span>
                         </button>
                       ))}
                     </div>
