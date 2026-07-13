@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Link2, Lightbulb, RefreshCw, X } from "lucide-react";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect, type SkillOption } from "../components/PromptToolbar";
@@ -53,9 +53,16 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
   const [isFading, setIsFading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentSuggestions = suggestionSets[currentSetIndex];
   const isChatting = messages.length > 0;
+  const latestMessage = messages[messages.length - 1];
+
+  useEffect(() => {
+    if (!isChatting) return;
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [isChatting, latestMessage?.id, latestMessage?.text]);
 
   const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
@@ -445,6 +452,7 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
                 <time>{message.time}</time>
               </article>
             ))}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="chat-composer">
