@@ -170,6 +170,9 @@ const PREFERRED_WINDOW_SIZE = {
     minWidth: 1100,
     minHeight: 640,
 };
+function getAppIconPath() {
+    return path.join(__dirname, "../../resources/app-icon.svg");
+}
 function getProductionIndexPath() {
     return path.join(__dirname, "../../dist/index.html");
 }
@@ -195,6 +198,7 @@ function createWindow() {
         maximizable: true,
         fullscreenable: true,
         title: "桌面智算",
+        icon: getAppIconPath(),
         frame: true,
         titleBarStyle: "default",
         autoHideMenuBar: !isMac,

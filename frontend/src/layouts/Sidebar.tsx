@@ -1,3 +1,4 @@
+import appIconUrl from "../assets/app-icon.svg";
 import { routes, type RouteKey } from "../app/router";
 
 interface SidebarProps {
@@ -8,12 +9,14 @@ interface SidebarProps {
 export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
   return (
     <aside className="sidebar" aria-label="主导航">
-      <button className="brand-button" type="button" title="桌面智算">
-        <span className="brand-bars" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
+      <button
+        className="brand-button"
+        type="button"
+        title="返回首页"
+        aria-label="返回首页"
+        onClick={() => onRouteChange("home")}
+      >
+        <img src={appIconUrl} alt="" />
       </button>
       <nav className="nav-list">
         {routes.map((route) => {

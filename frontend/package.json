@@ -27,6 +27,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "resources/**/*",
       "!electron/main/index-simple.mjs",
       "!electron/main/index-test.mjs",
       "!electron/main/index.d.ts",
