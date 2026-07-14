@@ -82,6 +82,25 @@ body {
   left: 0;
 }
 
+.app-window--shell-compact,
+.app-window--shell-compact.app-window--assistant-closed,
+.app-window--shell-compact.app-window--history-open,
+.app-window--shell-compact.app-window--menu-collapsed {
+  grid-template-columns: 0 0 minmax(0, 1fr);
+}
+
+.app-window--shell-compact .sidebar,
+.app-window--shell-compact .conversation-history-panel,
+.app-window--shell-compact .assistant-panel,
+.app-window--shell-compact .local-resource-panel,
+.app-window--shell-compact .right-panel-resizer {
+  display: none;
+}
+
+.app-window--shell-compact .home-toolbar {
+  left: 0;
+}
+
 .disk-tabs button,
 .segmented button,
 .settings-tabs button {
@@ -400,6 +419,37 @@ body {
   transition: color 0.15s ease, background 0.15s ease;
 }
 
+.conversation-history__item-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.conversation-history__delete {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: #94a3b8;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.conversation-history__delete:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
 .conversation-history__item:hover,
 .conversation-history__item--active {
   color: var(--blue);
@@ -587,6 +637,50 @@ body {
   overflow-wrap: anywhere;
 }
 
+.chat-message__content-wrap {
+  position: relative;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.chat-message__content {
+  min-width: 0;
+  transition: filter 0.18s ease, opacity 0.18s ease;
+}
+
+.chat-message--regenerating .chat-message__content {
+  filter: blur(3px);
+  opacity: 0.46;
+  user-select: none;
+  pointer-events: none;
+}
+
+.chat-message__loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 48px;
+  color: #1677ff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.48);
+  border-radius: 8px;
+}
+
+.chat-message__loading-overlay svg {
+  animation: chat-loading-spin 0.9s linear infinite;
+}
+
+@keyframes chat-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .chat-message--user .chat-message__bubble {
   padding: 10px 14px;
   color: #1f2937;
@@ -660,10 +754,154 @@ body {
   white-space: nowrap;
 }
 
-.chat-message time {
+.chat-message__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-message--user .chat-message__meta {
+  justify-content: flex-end;
+}
+
+.chat-message--assistant .chat-message__meta {
+  justify-content: flex-start;
+}
+
+.chat-message time,
+.chat-message__meta time {
   color: #6b7280;
   font-size: 12px;
   line-height: 1;
+}
+
+.chat-message__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.chat-message:hover .chat-message__actions,
+.chat-message:focus-within .chat-message__actions {
+  opacity: 1;
+}
+
+.chat-message__actions button,
+.chat-message__edit-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  color: #5f6878;
+  font-size: 12px;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chat-message__actions button:hover:not(:disabled),
+.chat-message__edit-actions button:hover:not(:disabled) {
+  color: #1677ff;
+  background: #f3f7ff;
+  border-color: #d6e4ff;
+}
+
+.chat-message__actions button:disabled,
+.chat-message__edit-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.chat-message__edit {
+  display: grid;
+  gap: 8px;
+  min-width: min(360px, 70vw);
+}
+
+.chat-message__edit textarea {
+  width: 100%;
+  min-height: 78px;
+  padding: 10px 12px;
+  color: #1f2937;
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+  background: #fff;
+  border: 1px solid #bfd7ff;
+  border-radius: 6px;
+  outline: none;
+}
+
+.chat-message__edit textarea:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.chat-message__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.chat-message__edit-actions .chat-message__action-primary {
+  color: #fff;
+  background: #1677ff;
+  border-color: #1677ff;
+}
+
+.chat-message__edit-actions .chat-message__action-primary:hover:not(:disabled) {
+  color: #fff;
+  background: #0f63d8;
+  border-color: #0f63d8;
+}
+
+.chat-message__candidate-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+  color: #64748b;
+  background: transparent;
+}
+
+.chat-message__candidate-switch button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #64748b;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chat-message__candidate-switch button:hover:not(:disabled) {
+  color: #1677ff;
+  background: #eef6ff;
+}
+
+.chat-message__candidate-switch button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.chat-message__candidate-switch span {
+  min-width: 32px;
+  color: #64748b;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 24px;
+  text-align: center;
 }
 
 /* ---- Markdown 渲染样式 ---- */
@@ -2753,6 +2991,24 @@ body {
   width: min(500px, 92vw);
 }
 
+.conversation-delete-confirm {
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.conversation-delete-confirm__dialog {
+  width: min(420px, 92vw);
+  height: auto;
+  max-height: min(300px, calc(100vh - 32px));
+}
+
+.conversation-delete-confirm__content {
+  padding: 24px 28px 18px;
+}
+
+.conversation-delete-confirm__content .confirm-dialog__desc {
+  margin-bottom: 0;
+}
+
 .confirm-dialog__header {
   display: flex;
   align-items: center;
@@ -4335,11 +4591,10 @@ body {
 
 .assistant-model-card__icon--image img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
-
 
 .assistant-model-card__icon--blue {
   background: linear-gradient(135deg, #2f73f6 0%, #08b879 100%);
@@ -5752,6 +6007,170 @@ body {
   }
 }
 
+@media (max-width: 960px) {
+  :root {
+    --workspace-x: 16px;
+    --workspace-bottom: 16px;
+  }
+
+  .app-window,
+  .app-window--assistant-closed,
+  .app-window--menu-collapsed,
+  .app-window--menu-collapsed.app-window--assistant-closed,
+  .app-window--menu-collapsed.app-window--settings {
+    grid-template-columns: 0 0 minmax(0, 1fr);
+  }
+
+  .sidebar,
+  .conversation-history-panel,
+  .assistant-panel,
+  .local-resource-panel,
+  .right-panel-resizer {
+    display: none;
+  }
+
+  .app-surface {
+    grid-column: 3;
+  }
+
+  .home-toolbar {
+    left: 0;
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .titlebar-left,
+  .titlebar-right {
+    gap: 8px;
+  }
+
+  .titlebar-module-label {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .launcher-button {
+    max-width: 112px;
+  }
+
+  .workspace {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --topbar-height: 50px;
+    --workspace-x: 10px;
+    --workspace-bottom: 10px;
+  }
+
+  .home-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: var(--topbar-height);
+    padding: 0 8px;
+  }
+
+  .titlebar-left,
+  .titlebar-right {
+    gap: 6px;
+  }
+
+  .titlebar-icon-btn,
+  .settings-menu-toggle.titlebar-icon-btn,
+  .icon-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .launcher-button,
+  .titlebar-assistant-button {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .launcher-button svg,
+  .titlebar-assistant-button svg {
+    margin: 0;
+  }
+
+  .titlebar-module-label {
+    max-width: 140px;
+  }
+
+  .home-center {
+    width: min(100%, 680px);
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 580px) {
+  :root {
+    --topbar-height: 46px;
+    --workspace-x: 6px;
+    --workspace-bottom: 6px;
+  }
+
+  .home-toolbar {
+    height: var(--topbar-height);
+    padding: 0 6px;
+  }
+
+  .titlebar-left,
+  .titlebar-right {
+    gap: 4px;
+  }
+
+  .titlebar-icon-btn,
+  .settings-menu-toggle.titlebar-icon-btn,
+  .icon-button {
+    width: 26px;
+    height: 26px;
+  }
+
+  .titlebar-icon-tip {
+    display: none;
+  }
+
+  .titlebar-module-label {
+    max-width: 100px;
+    font-size: 12px;
+  }
+
+  .home-center {
+    width: 100%;
+    padding: 0 8px;
+  }
+
+  .home-center h1 {
+    font-size: 22px;
+  }
+
+  .workspace {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .model-edit-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px 0;
+  }
+
+  .model-edit-field--full {
+    grid-column: auto;
+  }
+
+  .model-edit-dialog {
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+}
+
 @media (max-height: 700px) {
   :root {
     --topbar-height: 50px;
@@ -5812,5 +6231,88 @@ body {
 
   .assistant-composer__tools {
     padding-bottom: 8px;
+  }
+
+  .suggestion-list {
+    gap: 6px;
+  }
+
+  .suggestion-bubble {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .suggestion-refresh {
+    font-size: 12px;
+  }
+}
+
+/* ---- 全局滚动条 ---- */
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border: 2px solid transparent;
+  border-radius: var(--scrollbar-radius);
+  background-clip: padding-box;
+  margin-block: 8px;
+  margin-inline: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  min-height: 36px;
+  background: var(--scrollbar-thumb);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: var(--scrollbar-radius);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: background-color 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Firefox 兼容：避免新版 Chromium 用标准属性覆盖 WebKit 圆角滚动条 */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+@media (max-height: 560px) {
+  .suggestion-list {
+    display: none;
+  }
+
+  .home-center h1 {
+    margin: 8px 0 10px;
+    font-size: 22px;
+  }
+
+  .prompt-input {
+    min-height: 48px;
   }
 }

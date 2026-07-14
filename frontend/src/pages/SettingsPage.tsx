@@ -1,10 +1,18 @@
-import { Activity, Bot, CheckCircle2, FolderOpen, Info, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle, Zap } from "lucide-react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { Activity, CheckCircle2, ChevronDown, FolderOpen, Info, Pencil, Plus, RotateCw, Save, Star, Trash2, User, X, XCircle, Zap } from "lucide-react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { ScrollArea } from "../components/ScrollArea";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
-import { ModelVendorAvatar } from "../components/ModelVendorAvatar";
+import { ModelVendorAvatar, ModelVendorOptionIcon } from "../components/ModelVendorAvatar";
 import { useAssistantPanel } from "../layouts/AssistantPanelContext";
-import { assistantModelsApi, type AssistantModelFormInput } from "../services/assistantModelsApi";
+import {
+  MODEL_VENDOR_OPTIONS,
+  assistantModelsApi,
+  getModelVendorBaseUrl,
+  getModelVendorLabel,
+  resolveModelVendorValue,
+  type AssistantModelFormInput,
+} from "../services/assistantModelsApi";
 import { environmentsApi, type EnvironmentCreateInput, type EnvironmentImportInput } from "../services/environmentsApi";
 import type { AssistantModelDetail, AssistantModelSummary, RuntimeEnvironmentSummary } from "../types/domain";
 
@@ -21,50 +29,8 @@ const SYSTEM_TEMPLATE_GROUPS = [
 
 const SUPPORTED_SYSTEM_TEMPLATE = "llm-infer:LLM";
 
-const MODEL_PROVIDER_BASE_URLS: Record<string, string> = {
-  openrouter: "https://openrouter.ai/api/v1",
-  huggingface: "https://router.huggingface.co/v1",
-  skywork: "https://api.apifree.ai/agent/v1",
-  aihubmix: "https://aihubmix.com/v1",
-  siliconflow: "https://api.siliconflow.cn/v1",
-  novita: "https://api.novita.ai/openai",
-  volcengine: "https://ark.cn-beijing.volces.com/api/v3",
-  volcengine_coding_plan: "https://ark.cn-beijing.volces.com/api/coding/v3",
-  byteplus: "https://ark.ap-southeast.bytepluses.com/api/v3",
-  byteplus_coding_plan: "https://ark.ap-southeast.bytepluses.com/api/coding/v3",
-  openai_codex: "https://chatgpt.com/backend-api",
-  github_copilot: "https://api.githubcopilot.com",
-  deepseek: "https://api.deepseek.com",
-  gemini: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  zhipu: "https://open.bigmodel.cn/api/paas/v4",
-  dashscope: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  moonshot: "https://api.moonshot.ai/v1",
-  minimax: "https://api.minimax.io/v1",
-  minimax_anthropic: "https://api.minimax.io/anthropic",
-  mistral: "https://api.mistral.ai/v1",
-  stepfun: "https://api.stepfun.com/v1",
-  xiaomi_mimo: "https://api.xiaomimimo.com/v1",
-  longcat: "https://api.longcat.chat/openai/v1",
-  ant_ling: "https://api.ant-ling.com/v1",
-  ollama: "http://localhost:11434/v1",
-  lm_studio: "http://localhost:1234/v1",
-  atomic_chat: "http://localhost:1337/v1",
-  ovms: "http://localhost:8000/v3",
-  nvidia: "https://integrate.api.nvidia.com/v1",
-  groq: "https://api.groq.com/openai/v1",
-  qianfan: "https://qianfan.baidubce.com/v2",
-};
-
-const MODEL_PROVIDER_OPTIONS = ["custom", ...Object.keys(MODEL_PROVIDER_BASE_URLS)] as const;
-
-function normalizeModelProvider(value: string) {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-}
-
 function getDefaultModelBaseUrl(provider: string) {
-  const normalizedProvider = normalizeModelProvider(provider);
-  if (normalizedProvider === "custom") return "";
-  return MODEL_PROVIDER_BASE_URLS[normalizedProvider];
+  return getModelVendorBaseUrl(provider);
 }
 
 function normalizeLocalPath(value: string) {
@@ -115,7 +81,7 @@ export function SettingsPage() {
   const [isEnvironmentLoading, setIsEnvironmentLoading] = useState(false);
   const [checkingEnvironmentIds, setCheckingEnvironmentIds] = useState<Set<string>>(new Set());
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const { refreshModels, switchModel } = useAssistantPanel();
+  const { refreshModels } = useAssistantPanel();
 
   useEffect(() => {
     window.localStorage.setItem(SETTINGS_ACTIVE_TAB_STORAGE_KEY, activeTab);
@@ -338,7 +304,6 @@ export function SettingsPage() {
                     ) as Record<string, AssistantModelDetail>,
                   );
                   await refreshModels(defaultModel.id);
-                  await switchModel(defaultModel.id);
                   setToast({ message: `${defaultModel.name} 已设为默认模型`, tone: "success" });
                 } catch (error) {
                   showError(error instanceof Error ? error.message : "设置默认模型失败");
@@ -793,7 +758,7 @@ function CreateEnvironmentDialog({ onClose, onCreate }: CreateEnvironmentDialogP
             </button>
           </header>
 
-          <div className="env-create-dialog__body env-create-confirm-body">
+          <ScrollArea className="env-create-dialog__body env-create-confirm-body">
             <p className="confirm-dialog__desc">
               该操作会改变本机任务、服务或配置状态，需确认后继续。
             </p>
@@ -823,7 +788,7 @@ function CreateEnvironmentDialog({ onClose, onCreate }: CreateEnvironmentDialogP
                 {submitError}
               </p>
             ) : null}
-          </div>
+          </ScrollArea>
 
           <footer className="env-create-dialog__footer">
             <div />
@@ -1283,7 +1248,7 @@ function EnvironmentSettings({
   }
 
   return (
-    <div className="environment-list" aria-label="运行环境列表">
+    <ScrollArea className="environment-list" aria-label="运行环境列表">
       {environments.map((env) => {
         const isChecking = checkingEnvironmentIds.has(env.id);
         return (
@@ -1349,7 +1314,7 @@ function EnvironmentSettings({
           </article>
         );
       })}
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -1404,7 +1369,7 @@ function AssistantModelSettings({
           <p>暂无模型配置，请添加模型。</p>
         </div>
       ) : null}
-      <div className="assistant-model-grid" aria-label="AI 助手模型列表">
+      <ScrollArea className="assistant-model-grid" aria-label="AI 助手模型列表">
         {models.map((model) => (
           <article
             className={`assistant-model-card${
@@ -1473,7 +1438,7 @@ function AssistantModelSettings({
             </div>
           </article>
         ))}
-      </div>
+      </ScrollArea>
 
       {/* 模型详情弹窗 */}
       {selectedDetail ? (
@@ -1552,7 +1517,7 @@ function ModelAddDialog({
     const name = form.name.trim();
     if (!name) return;
 
-    const vendor = form.vendor.trim() || "自定义";
+    const vendor = resolveModelVendorValue(form.vendor || "custom");
     const contextValue = form.contextLength.trim();
 
     onSave({
@@ -1591,7 +1556,7 @@ function ModelAddDialog({
             </h3>
             <div className="model-edit-grid">
               <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
-              <ModelEditField label="Provider" value={form.vendor} onChange={(value) => updateForm("vendor", value)} listId="model-provider-options" placeholder="例如：openrouter、deepseek、custom" />
+              <ModelProviderField label="模型厂商" value={form.vendor} onChange={(value) => updateForm("vendor", value)} placeholder="请选择模型厂商" />
               <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
               <ModelEditField label="Model ID" value={form.modelId} onChange={(value) => updateForm("modelId", value)} placeholder="例如：deepseek-v4-flash" />
               <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
@@ -1623,7 +1588,6 @@ function ModelAddDialog({
             </button>
           </div>
         </footer>
-        <ModelProviderOptionsDatalist />
       </section>
     </div>
   );
@@ -1689,7 +1653,7 @@ function ModelDetail({
                 <span className="model-detail-info-value">{detail.name}</span>
               </div>
               <div className="model-detail-info-item">
-                <span className="model-detail-info-label">Provider</span>
+                <span className="model-detail-info-label">模型厂商</span>
                 <span className="model-detail-info-value">{detail.provider}</span>
               </div>
               <div className="model-detail-info-item model-detail-info-item--full">
@@ -1765,7 +1729,6 @@ function ModelDetail({
             </button>
           </div>
         </footer>
-        <ModelProviderOptionsDatalist />
       </section>
     </div>
   );
@@ -1784,7 +1747,7 @@ function ModelEditDialog({
 }) {
   const [form, setForm] = useState({
     name: detail.name,
-    vendor: detail.provider,
+    vendor: resolveModelVendorValue(detail.provider),
     apiBaseUrl: detail.apiBaseUrl,
     modelId: detail.modelId,
     apiKey: "",
@@ -1811,7 +1774,7 @@ function ModelEditDialog({
     onSave({
       id: detail.id,
       name: form.name.trim() || detail.name,
-      vendor: form.vendor.trim() || detail.provider,
+      vendor: resolveModelVendorValue(form.vendor || detail.provider),
       apiBaseUrl: form.apiBaseUrl.trim(),
       modelId: form.modelId.trim(),
       apiKey: form.apiKey,
@@ -1841,7 +1804,7 @@ function ModelEditDialog({
           <div className="model-edit-summary">
             <ModelVendorAvatar
               className="model-edit-summary__icon"
-              provider={detail.provider}
+              provider={getModelVendorLabel(form.vendor || detail.provider)}
               variant={detail.variant}
             />
             <div className="model-edit-summary__text">
@@ -1849,7 +1812,7 @@ function ModelEditDialog({
                 <h3>{form.name || detail.name}</h3>
                 <StatusBadge label={detail.status} tone={detail.tone} />
               </div>
-              <p>{form.vendor || detail.provider}</p>
+              <p>{getModelVendorLabel(form.vendor || detail.provider)}</p>
             </div>
           </div>
 
@@ -1860,7 +1823,7 @@ function ModelEditDialog({
             </h3>
             <div className="model-edit-grid">
               <ModelEditField label="模型名称" value={form.name} onChange={(value) => updateForm("name", value)} />
-              <ModelEditField label="Provider" value={form.vendor} onChange={(value) => updateForm("vendor", value)} listId="model-provider-options" placeholder="例如：openrouter、deepseek、custom" />
+              <ModelProviderField label="模型厂商" value={form.vendor} onChange={(value) => updateForm("vendor", value)} placeholder="请选择模型厂商" />
               <ModelEditField className="model-edit-field--full" label="API Base URL" value={form.apiBaseUrl} onChange={(value) => updateForm("apiBaseUrl", value)} />
               <ModelEditField label="Model ID" value={form.modelId} onChange={(value) => updateForm("modelId", value)} placeholder="例如：deepseek-v4-flash" />
               <ModelEditField label="API Key" type="password" value={form.apiKey} onChange={(value) => updateForm("apiKey", value)} />
@@ -1907,7 +1870,6 @@ function ModelEditField({
   type = "text",
   className = "",
   placeholder,
-  listId,
 }: {
   label: string;
   value: string;
@@ -1915,13 +1877,11 @@ function ModelEditField({
   type?: "password" | "text";
   className?: string;
   placeholder?: string;
-  listId?: string;
 }) {
   return (
     <label className={`model-edit-field${className ? ` ${className}` : ""}`}>
       <span>{label}</span>
       <input
-        list={listId}
         onChange={(e) => onChange(e.target.value)}
         title={value}
         type={type}
@@ -1932,13 +1892,145 @@ function ModelEditField({
   );
 }
 
-function ModelProviderOptionsDatalist() {
+function ModelProviderField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const selectedValue = resolveModelVendorValue(value || "custom");
+  const selectedLabel = value ? getModelVendorLabel(value) : "";
+
+  const filteredOptions = useMemo(() => {
+    if (!filter) return [...MODEL_VENDOR_OPTIONS];
+    const f = filter.toLowerCase();
+    return MODEL_VENDOR_OPTIONS.filter((opt) =>
+      opt.label.toLowerCase().includes(f) || opt.value.toLowerCase().includes(f)
+    );
+  }, [filter]);
+
+  const selectOption = (opt: (typeof MODEL_VENDOR_OPTIONS)[number]) => {
+    onChange(opt.value);
+    setFilter(opt.label);
+    setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        setOpen(true);
+        setFilter(selectedLabel);
+        e.preventDefault();
+      }
+      return;
+    }
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((prev) =>
+          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        );
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+          selectOption(filteredOptions[activeIndex]);
+        } else {
+          setOpen(false);
+        }
+        break;
+    }
+  };
+
   return (
-    <datalist id="model-provider-options">
-      {MODEL_PROVIDER_OPTIONS.map((provider) => (
-        <option key={provider} value={provider} />
-      ))}
-    </datalist>
+    <label className="model-edit-field">
+      <span>{label}</span>
+      <div className="model-provider-field" onClick={() => { inputRef.current?.focus(); }}>
+        <input
+          ref={inputRef}
+          value={open ? filter : selectedLabel}
+          onChange={(e) => {
+            const nextFilter = e.target.value;
+            const exactMatch = MODEL_VENDOR_OPTIONS.find((option) =>
+              option.label.toLowerCase() === nextFilter.trim().toLowerCase() ||
+              option.value.toLowerCase() === nextFilter.trim().toLowerCase()
+            );
+            setFilter(nextFilter);
+            if (exactMatch) {
+              onChange(exactMatch.value);
+            }
+            if (!open) setOpen(true);
+            setActiveIndex(-1);
+          }}
+          onFocus={() => {
+            setFilter(selectedLabel);
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          title={value}
+          type="text"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          className={`model-provider-field__toggle${open ? " model-provider-field__toggle--open" : ""}`}
+          tabIndex={-1}
+          aria-label={open ? "关闭选项菜单" : "打开选项菜单"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => {
+              if (!prev) setFilter(selectedLabel);
+              else setActiveIndex(-1);
+              return !prev;
+            });
+            inputRef.current?.focus();
+          }}
+        >
+          <ChevronDown size={15} />
+        </button>
+        {open && filteredOptions.length > 0 && (
+          <ScrollArea ref={menuRef} className="model-provider-field__dropdown">
+            {filteredOptions.map((opt, i) => (
+              <div
+                key={opt.value}
+                className={`model-provider-field__option${i === activeIndex ? " model-provider-field__option--active" : ""}${opt.value === selectedValue ? " model-provider-field__option--selected" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectOption(opt);
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
+              >
+                <ModelVendorOptionIcon provider={opt.label} />
+                <span className="model-provider-field__option-label">{opt.label}</span>
+              </div>
+            ))}
+          </ScrollArea>
+        )}
+      </div>
+    </label>
   );
 }
 

@@ -11,7 +11,6 @@ const ENVIRONMENTS_API_BASE_URL =
   || process.env.VITE_API_BASE_URL
   || "http://10.0.78.12:8000";
 const isMac = process.platform === "darwin";
-const isWindows = process.platform === "win32";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -190,8 +189,8 @@ async function requestEnvironmentApi(value: unknown) {
 const PREFERRED_WINDOW_SIZE = {
   width: 1180,
   height: 700,
-  minWidth: 1100,
-  minHeight: 640,
+  minWidth: 480,
+  minHeight: 400,
 };
 
 function getAppIconPath() {
@@ -232,7 +231,6 @@ function createWindow() {
     titleBarStyle: "default",
     autoHideMenuBar: !isMac,
     backgroundColor: "#ffffff",
-    ...(isWindows ? { backgroundMaterial: "mica" as const } : {}),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

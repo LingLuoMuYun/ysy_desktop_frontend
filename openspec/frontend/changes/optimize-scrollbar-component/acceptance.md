@@ -19,3 +19,34 @@
 未验证：
 
 - 未启动 Vite / Electron 进行视觉截图检查。
+
+## 2026-07-14 追加圆角优化
+
+已完成：
+
+- 在 `frontend/src/styles/tokens.css` 增加 `--radius-xs/sm/lg/xl/pill` 与滚动条颜色、尺寸、圆角 token。
+- 将全局 WebKit 滚动条改为 token 驱动，轨道和滑块均通过 `border-radius: var(--scrollbar-radius)` 呈现圆角，并保留 hover / active 反馈。
+- 将 `ScrollArea.css` 的滚动条轨道、滑块圆角统一到 `--scrollbar-radius`，补齐轨道留白、`background-clip` 和 active 态。
+
+验证：
+
+- `pnpm run typecheck` 通过，实际执行 `tsc -b` 成功。
+
+未验证：
+
+- 未启动 Vite / Electron 进行浏览器或桌面端视觉截图检查。
+
+## 2026-07-14 修复 Chromium 圆角未生效
+
+已完成：
+
+- 将 `scrollbar-width` / `scrollbar-color` 限定在 Firefox 专用 `@supports (-moz-appearance: none)` 中，避免新版 Chromium/Electron 使用标准滚动条属性覆盖 `::-webkit-scrollbar` 圆角样式。
+- 保留 WebKit 轨道和滑块的 `border-radius`、透明边框和 hover / active 反馈。
+
+验证：
+
+- `pnpm run typecheck` 通过，实际执行 `tsc -b` 成功。
+
+未验证：
+
+- 未启动 Vite / Electron 进行视觉截图复核。

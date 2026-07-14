@@ -37,6 +37,43 @@ interface BackendAssistantModel {
   deletedAt?: string | null;
 }
 
+export const MODEL_VENDOR_OPTIONS = [
+  { label: "硅基流动", value: "siliconflow", baseUrl: "https://api.siliconflow.cn/v1" },
+  { label: "火山引擎", value: "volcengine", baseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
+  { label: "DeepSeek", value: "DeepSeek", baseUrl: "https://api.deepseek.com" },
+  { label: "智谱", value: "zhipu", baseUrl: "https://open.bigmodel.cn/api/paas/v4" },
+  { label: "阿里云", value: "dashscope", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
+  { label: "月之暗面", value: "moonshot", baseUrl: "https://api.moonshot.ai/v1" },
+  { label: "minimax", value: "minimax", baseUrl: "https://api.minimax.io/v1" },
+  { label: "阶跃星辰", value: "stepfun", baseUrl: "https://api.stepfun.com/v1" },
+  { label: "小米", value: "xiaomi_mimo", baseUrl: "https://api.xiaomimimo.com/v1" },
+  { label: "custom", value: "custom", baseUrl: "" },
+] as const;
+
+function normalizeVendorKey(value: string) {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+export function resolveModelVendorValue(value: string) {
+  const normalizedValue = normalizeVendorKey(value);
+  const matched = MODEL_VENDOR_OPTIONS.find(
+    (option) =>
+      normalizeVendorKey(option.value) === normalizedValue ||
+      normalizeVendorKey(option.label) === normalizedValue,
+  );
+  return matched?.value || "custom";
+}
+
+export function getModelVendorLabel(value: string) {
+  const vendorValue = resolveModelVendorValue(value);
+  return MODEL_VENDOR_OPTIONS.find((option) => option.value === vendorValue)?.label || vendorValue;
+}
+
+export function getModelVendorBaseUrl(value: string) {
+  const vendorValue = resolveModelVendorValue(value);
+  return MODEL_VENDOR_OPTIONS.find((option) => option.value === vendorValue)?.baseUrl;
+}
+
 export interface AssistantModelFormInput {
   name: string;
   vendor: string;
@@ -124,20 +161,13 @@ function formatNumber(value: number | string) {
   return Number.isFinite(numberValue) ? numberValue.toLocaleString() : String(value);
 }
 
-function normalizeProvider(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "custom";
-}
-
 function toBackendPayload(input: AssistantModelFormInput, includeApiKey: boolean) {
   const apiKey = input.apiKey?.trim();
+  const vendorValue = resolveModelVendorValue(input.vendor);
   return {
     name: input.name.trim(),
-    vendor: input.vendor.trim() || "自定义",
-    provider: normalizeProvider(input.vendor),
+    vendor: vendorValue,
+    provider: vendorValue,
     endpoint: input.apiBaseUrl.trim(),
     ...(includeApiKey && apiKey ? { apiKey } : {}),
     modelId: input.modelId.trim(),
@@ -150,12 +180,13 @@ function toBackendPayload(input: AssistantModelFormInput, includeApiKey: boolean
 export function mapAssistantModel(model: BackendAssistantModel): AssistantModelDetail {
   const mappedStatus = mapStatus(model.status);
   const apiKeyMasked = model.apiKeyMasked || "";
+  const vendorValue = resolveModelVendorValue(model.provider || model.vendor || "custom");
   return {
     id: model.id,
     name: model.name,
     status: mappedStatus.status,
     tone: mappedStatus.tone,
-    provider: model.vendor || model.provider || "自定义",
+    provider: getModelVendorLabel(vendorValue),
     context: formatContext(model.contextLength),
     isDefault: model.isDefault,
     variant: mappedStatus.variant,

@@ -4,5 +4,6 @@
 - [x] 新增通用 `ScrollArea` 组件。
 - [x] 增加滚动条组件样式，兼容全局设计 token。
 - [x] 接入首页、右侧助手、AI 助手历史、项目/任务/数据/模型列表。
+- [x] 增加全局滚动条圆角 token，并用 `border-radius` 统一 WebKit 轨道和滑块圆角。
 - [x] 运行前端 TypeScript 验证。
 - [x] 更新验收记录。

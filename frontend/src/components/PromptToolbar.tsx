@@ -113,12 +113,9 @@ export function PromptToolbar({
 
     if (key === "upload") {
       const hasElectronAPI = Boolean(window.ysyDesktop?.selectAttachments);
-      console.debug("[PromptToolbar] 上传附件触发:", { hasElectronAPI, hasOnAttachmentsSelected: Boolean(onAttachmentsSelected) });
 
       if (onAttachmentsSelected && hasElectronAPI) {
-        console.debug("[PromptToolbar] 使用 Electron 原生对话框");
         const attachments = await window.ysyDesktop!.selectAttachments!();
-        console.debug("[PromptToolbar] 原生对话框返回:", attachments);
         if (attachments.length > 0) {
           onAttachmentsSelected(attachments);
         }
@@ -126,7 +123,6 @@ export function PromptToolbar({
       }
 
       if (onFilesSelected) {
-        console.debug("[PromptToolbar] 使用浏览器 fallback <input type=file>");
         fileInputRef.current?.click();
       }
       return;

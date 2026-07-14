@@ -9,7 +9,6 @@ const ENVIRONMENTS_API_BASE_URL = process.env.ENVIRONMENTS_API_BASE_URL
     || process.env.VITE_API_BASE_URL
     || "http://10.0.78.12:8000";
 const isMac = process.platform === "darwin";
-const isWindows = process.platform === "win32";
 let mainWindow = null;
 const ENVIRONMENT_LIST_PAGE_SIZE = 20;
 const ENVIRONMENT_RECOVERY_LIMIT = 200;
@@ -167,8 +166,8 @@ async function requestEnvironmentApi(value) {
 const PREFERRED_WINDOW_SIZE = {
     width: 1180,
     height: 700,
-    minWidth: 1100,
-    minHeight: 640,
+    minWidth: 480,
+    minHeight: 400,
 };
 function getAppIconPath() {
     return path.join(__dirname, "../../resources/icon.ico");
@@ -203,7 +202,6 @@ function createWindow() {
         titleBarStyle: "default",
         autoHideMenuBar: !isMac,
         backgroundColor: "#ffffff",
-        ...(isWindows ? { backgroundMaterial: "mica" } : {}),
         webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,

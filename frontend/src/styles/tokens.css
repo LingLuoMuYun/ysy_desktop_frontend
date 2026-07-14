@@ -21,9 +21,20 @@
   --red: #d64545;
   --red-soft: #fff0f0;
   --shadow: 0 24px 80px rgba(21, 35, 55, 0.16);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius: 8px;
-  --app-min-width: 1100px;
-  --app-min-height: 640px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --scrollbar-size: 8px;
+  --scrollbar-track: rgba(15, 23, 42, 0.06);
+  --scrollbar-thumb: rgba(100, 116, 139, 0.36);
+  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.56);
+  --scrollbar-thumb-active: rgba(51, 65, 85, 0.72);
+  --scrollbar-radius: var(--radius-pill);
+  --app-min-width: 480px;
+  --app-min-height: 400px;
   --sidebar-width: 78px;
   --sidebar-compact-width: 76px;
   --history-width: 0px;
@@ -32,5 +43,5 @@
   --workspace-x: 24px;
   --workspace-bottom: 20px;
   --breakpoint-compact: 1280px;
-  --breakpoint-minimum: 1100px;
+  --breakpoint-minimum: 480px;
 }

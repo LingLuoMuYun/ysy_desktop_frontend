@@ -6,7 +6,9 @@ import type { ChatMessage } from "../pages/HomePage";
  */
 export interface ConversationSummary {
   id: string;
+  sessionKey?: string;
   title: string;
   updatedAt: string;
   messages: ChatMessage[];
+  source?: "local" | "server";
 }

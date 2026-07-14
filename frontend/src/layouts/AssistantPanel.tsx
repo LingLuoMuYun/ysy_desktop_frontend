@@ -1,11 +1,15 @@
-import { Bot, ChevronDown, History, MessageSquarePlus, RefreshCw, SendHorizontal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Bot, Check, History, LoaderCircle, MessageSquarePlus, Pencil, RefreshCw, RotateCcw, SendHorizontal } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RouteKey } from "../app/router";
+import {
+  mapFilesToChatAttachments,
+  MessageAttachmentList,
+  SelectedAttachmentList,
+  type ChatAttachment,
+} from "../components/ChatAttachments";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect } from "../components/PromptToolbar";
-import { StatusBadge } from "../components/StatusBadge";
 import { ScrollArea } from "../components/ScrollArea";
-import type { AssistantModelDetail } from "../types/domain";
 import { useAssistantPanel } from "./AssistantPanelContext";
 
 interface AssistantPanelProps {
@@ -28,23 +32,26 @@ const assistantPrompts = [
 export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
   const [promptSetIndex, setPromptSetIndex] = useState(0);
   const [draft, setDraft] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<ChatAttachment[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-  const [modelSwitchError, setModelSwitchError] = useState("");
   const {
     messages,
     conversations,
     activeConversationId,
     selectConversation,
     sendMessage,
+    editLatestUserMessage,
+    regenerateLatestAnswer,
+    switchLatestCandidate,
     createConversation,
     isStreaming,
-    modelList,
     currentModel,
-    switchModel,
   } = useAssistantPanel();
+  const [editingMessageId, setEditingMessageId] = useState("");
+  const [editingValue, setEditingValue] = useState("");
+  const [regeneratingAssistantMessageId, setRegeneratingAssistantMessageId] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 首页不渲染此面板（首页用 HomePage 自己的对话 UI）
   if (activeRoute === "home") {
@@ -53,32 +60,39 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
 
   const prompts = assistantPrompts[promptSetIndex];
   const hasMessages = messages.length > 0;
-  const availableModels = useMemo(() => modelList.filter((m) => m.status === "可用"), [modelList]);
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  const latestAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant");
 
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 点击外部关闭下拉
-  useEffect(() => {
-    if (!modelDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setModelDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [modelDropdownOpen]);
-
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed || isStreaming) return;
+    const attachments = attachedFiles;
     setDraft("");
+    setAttachedFiles([]);
     setHistoryOpen(false);
-    await sendMessage(trimmed);
+    await sendMessage(trimmed, attachments);
+    textareaRef.current?.focus();
   };
+
+  const handleFilesSelected = useCallback((files: File[]) => {
+    setAttachedFiles(mapFilesToChatAttachments(files));
+    textareaRef.current?.focus();
+  }, []);
+
+  const handleAttachmentsSelected = useCallback((attachments: ChatAttachment[]) => {
+    setAttachedFiles(attachments);
+    textareaRef.current?.focus();
+  }, []);
+
+  const handleRemoveAttachment = useCallback((indexToRemove: number) => {
+    setAttachedFiles((current) => current.filter((_attachment, index) => index !== indexToRemove));
+    textareaRef.current?.focus();
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -87,15 +101,48 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
     }
   };
 
-  const handleSwitchModel = async (model: AssistantModelDetail) => {
-    if (model.id === currentModel?.id) return;
+  const handleStartEditMessage = (message: (typeof messages)[number]) => {
+    setEditingMessageId(message.id);
+    setEditingValue(message.text);
+  };
+
+  const handleCancelEditMessage = () => {
+    setEditingMessageId("");
+    setEditingValue("");
+  };
+
+  const handleSubmitEditMessage = async () => {
+    const trimmed = editingValue.trim();
+    if (!trimmed || isStreaming || regeneratingAssistantMessageId) return;
+    const targetAssistantMessageId = latestAssistantMessage?.id ?? "";
+    setRegeneratingAssistantMessageId(targetAssistantMessageId);
+    setEditingMessageId("");
+    setEditingValue("");
     try {
-      setModelSwitchError("");
-      await switchModel(model.id);
-      setModelDropdownOpen(false);
-    } catch (error) {
-      setModelSwitchError(error instanceof Error ? error.message : "模型切换失败，请重试");
+      await editLatestUserMessage(trimmed);
+    } finally {
+      setRegeneratingAssistantMessageId("");
     }
+  };
+
+  const handleRegenerateLatestAnswer = async () => {
+    if (isStreaming || regeneratingAssistantMessageId) return;
+    const targetAssistantMessageId = latestAssistantMessage?.id ?? "";
+    setRegeneratingAssistantMessageId(targetAssistantMessageId);
+    try {
+      await regenerateLatestAnswer();
+    } finally {
+      setRegeneratingAssistantMessageId("");
+    }
+  };
+
+  const handleSwitchAdjacentCandidate = (message: (typeof messages)[number], direction: -1 | 1) => {
+    if (!message.candidates) return;
+    const activeIndex = message.candidates.findIndex((candidate) => candidate.active);
+    if (activeIndex < 0) return;
+    const nextCandidate = message.candidates[activeIndex + direction];
+    if (!nextCandidate) return;
+    void switchLatestCandidate(nextCandidate.id);
   };
 
   const sendButton = (
@@ -115,55 +162,6 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
       <div className="assistant-header">
         <div className="assistant-header__title-row">
           <strong>AI 助手</strong>
-          {/* 模型选择器 */}
-          <div className="assistant-model-selector" ref={dropdownRef}>
-            <button
-              className="assistant-model-selector__trigger"
-              type="button"
-              onClick={() => setModelDropdownOpen((v) => !v)}
-              title={currentModel ? `当前模型：${currentModel.name}` : "选择模型"}
-            >
-              <span className="assistant-model-selector__name">
-                {currentModel ? `模型：${currentModel.name}` : "选择模型"}
-              </span>
-              <ChevronDown size={12} />
-            </button>
-            {modelDropdownOpen && (
-              <div className="assistant-model-selector__dropdown">
-                {availableModels.length === 0 ? (
-                  <div className="assistant-model-selector__empty">
-                    暂无可用模型，请先在设置中添加
-                  </div>
-                ) : (
-                  <>
-                    {modelSwitchError && (
-                      <div className="assistant-model-selector__empty" role="alert">
-                        {modelSwitchError}
-                      </div>
-                    )}
-                    {availableModels.map((model) => (
-                      <button
-                        key={model.id}
-                        className={`assistant-model-selector__option${
-                          model.id === currentModel?.id ? " assistant-model-selector__option--active" : ""
-                        }`}
-                        type="button"
-                        onClick={() => handleSwitchModel(model)}
-                      >
-                        <div className="assistant-model-selector__option-main">
-                          <span className="assistant-model-selector__option-name">{model.name}</span>
-                          <StatusBadge label={model.status} tone={model.tone} />
-                        </div>
-                        <span className="assistant-model-selector__option-provider">
-                          Provider: {model.provider} · 上下文 {model.context}
-                        </span>
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
         </div>
         <div className="assistant-header__tools">
           <button
@@ -220,19 +218,55 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
         <ScrollArea className="assistant-messages" aria-live="polite">
           {messages.map((msg) => (
             <article
-              className={`chat-message chat-message--${msg.role}`}
+              className={`chat-message chat-message--${msg.role}${
+                msg.id === regeneratingAssistantMessageId ? " chat-message--regenerating" : ""
+              }`}
               key={msg.id}
             >
               <div className="chat-message__bubble">
-                {msg.text ? (
-                  <MarkdownRenderer
-                    content={msg.text}
-                    isStreaming={
-                      isStreaming &&
-                      msg.role === "assistant" &&
-                      msg.id === messages[messages.length - 1]?.id
-                    }
-                  />
+                <MessageAttachmentList attachments={msg.attachments} />
+                {editingMessageId === msg.id ? (
+                  <div className="chat-message__edit">
+                    <textarea
+                      aria-label="编辑消息"
+                      onChange={(event) => setEditingValue(event.target.value)}
+                      rows={3}
+                      value={editingValue}
+                    />
+                    <div className="chat-message__edit-actions">
+                      <button type="button" onClick={handleCancelEditMessage}>
+                        取消
+                      </button>
+                      <button
+                        className="chat-message__action-primary"
+                        disabled={!editingValue.trim() || isStreaming}
+                        type="button"
+                        onClick={() => void handleSubmitEditMessage()}
+                      >
+                        <Check size={13} />
+                        保存并重新生成
+                      </button>
+                    </div>
+                  </div>
+                ) : msg.text ? (
+                  <div className="chat-message__content-wrap">
+                    <div className="chat-message__content">
+                      <MarkdownRenderer
+                        content={msg.text}
+                        isStreaming={
+                          isStreaming &&
+                          msg.role === "assistant" &&
+                          msg.id === messages[messages.length - 1]?.id
+                        }
+                      />
+                    </div>
+                    {msg.id === regeneratingAssistantMessageId ? (
+                      <div className="chat-message__loading-overlay" aria-live="polite" role="status">
+                        <LoaderCircle size={20} />
+                        <span>生成中</span>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="chat-message__streaming">
                     <span className="chat-message__streaming-dot" />
@@ -240,8 +274,58 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
                     <span className="chat-message__streaming-dot" />
                   </div>
                 )}
+                {msg.role === "assistant" && msg.candidates && msg.candidates.length > 1 ? (
+                  <div className="chat-message__candidate-switch" aria-label="回答候选版本">
+                    <button
+                      disabled={isStreaming || msg.candidates.findIndex((candidate) => candidate.active) <= 0}
+                      type="button"
+                      aria-label="上一个回答版本"
+                      onClick={() => handleSwitchAdjacentCandidate(msg, -1)}
+                    >
+                      <ArrowLeft size={13} />
+                    </button>
+                    <span>
+                      {(msg.candidates.findIndex((candidate) => candidate.active) + 1) || 1}/{msg.candidates.length}
+                    </span>
+                    <button
+                      disabled={
+                        isStreaming ||
+                        msg.candidates.findIndex((candidate) => candidate.active) >= msg.candidates.length - 1
+                      }
+                      type="button"
+                      aria-label="下一个回答版本"
+                      onClick={() => handleSwitchAdjacentCandidate(msg, 1)}
+                    >
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <time>{msg.time}</time>
+              <div className="chat-message__meta">
+                <time>{msg.time}</time>
+                <div className="chat-message__actions">
+                  {msg.role === "user" && msg.id === latestUserMessage?.id ? (
+                    <button
+                      disabled={isStreaming}
+                      type="button"
+                      onClick={() => handleStartEditMessage(msg)}
+                    >
+                      <Pencil size={13} />
+                      编辑
+                    </button>
+                  ) : null}
+                  {msg.role === "assistant" && msg.id === latestAssistantMessage?.id ? (
+                    <button
+                      disabled={isStreaming || Boolean(regeneratingAssistantMessageId)}
+                      type="button"
+                      onClick={() => void handleRegenerateLatestAnswer()}
+                    >
+                      <RotateCcw size={13} />
+                      重新生成
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </article>
           ))}
           <div ref={messagesEndRef} />
@@ -273,7 +357,13 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
       )}
 
       <div className="assistant-composer">
+        <SelectedAttachmentList
+          attachments={attachedFiles}
+          onRemove={handleRemoveAttachment}
+          onAfterOpen={() => textareaRef.current?.focus()}
+        />
         <textarea
+          ref={textareaRef}
           aria-label="AI 助手输入"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
@@ -284,6 +374,8 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
         <PromptToolbar
           className="assistant-composer__tools"
           sendButton={sendButton}
+          onFilesSelected={handleFilesSelected}
+          onAttachmentsSelected={handleAttachmentsSelected}
         />
         <ProjectSelect className="assistant-project" />
       </div>

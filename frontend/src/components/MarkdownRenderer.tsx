@@ -209,9 +209,12 @@ function parseMarkdownFormPreview(markdown: string): FormPreviewModel | null {
   if (lines.length === 0) return null;
 
   const titleLine = lines.find((line) => /^#{1,4}\s+/.test(line));
+  const hasTitleLine = Boolean(titleLine);
   const title = titleLine ? cleanMarkdownLabel(titleLine.replace(/^#{1,4}\s+/, "")) : "表单预览";
+  const hasCodeFenceOrTable = /```|^\|.*\|/m.test(markdown);
   const fields: FormFieldPreview[] = [];
   const seen = new Set<string>();
+  let hasChoiceControl = false;
 
   for (const line of lines) {
     const labelMatches = Array.from(line.matchAll(/\*\*([^*]+)\*\*/g));
@@ -220,6 +223,7 @@ function parseMarkdownFormPreview(markdown: string): FormPreviewModel | null {
       if (!label || seen.has(label)) continue;
 
       const options = parseCheckboxOptions(line);
+      hasChoiceControl = hasChoiceControl || Boolean(options?.length);
       fields.push({
         name: label,
         label,
@@ -231,8 +235,13 @@ function parseMarkdownFormPreview(markdown: string): FormPreviewModel | null {
     }
   }
 
-  const hasFormSignal = /表|申请|请假|登记|信息|草稿|字段/.test(title)
-    || fields.some((field) => /姓名|名称|日期|天数|类型|理由|班级|学号|电话|邮箱|地址|项目|任务|环境|模型|数据/.test(field.label));
+  const hasExplicitFormSignal = hasTitleLine && /表单|申请|请假|登记|草稿|字段|创建|新增|编辑|导入|配置/.test(title);
+  const hasExplanationSignal = /对比|区别|比较|差异|说明|解释|介绍|概览|总结/.test(title);
+  const formLikeFieldCount = fields.filter((field) =>
+    /姓名|名称|日期|天数|理由|班级|学号|电话|邮箱|地址|项目|任务|环境|模型|数据|路径|用途/.test(field.label),
+  ).length;
+  const hasTechnicalExplanationSignal = hasExplanationSignal || /详解|细节|教程|原理|概念|Webpack|webpack|Vite|vite/.test(title);
+  const hasFormSignal = hasExplicitFormSignal || hasChoiceControl || (!hasTechnicalExplanationSignal && !hasCodeFenceOrTable && formLikeFieldCount >= 3);
 
   if (fields.length < 2 || !hasFormSignal) return null;
 

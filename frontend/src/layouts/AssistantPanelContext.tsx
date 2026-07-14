@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import type { ChatAttachment } from "../components/ChatAttachments";
 import { assistantModelsApi } from "../services/assistantModelsApi";
 import { chatApi } from "../services/chatApi";
 import type { AssistantModelDetail } from "../types/domain";
@@ -30,7 +31,10 @@ interface AssistantPanelContextValue {
   activeConversationId: string;
   selectConversation: (conversationId: string) => void;
   /** 从任意页面向助手面板发送消息（异步，等待 AI 回复） */
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
+  editLatestUserMessage: (message: string) => Promise<void>;
+  regenerateLatestAnswer: () => Promise<void>;
+  switchLatestCandidate: (candidateId: string) => Promise<void>;
   /** 新建空白会话 */
   createConversation: () => void;
   /** 当前是否正在等待 AI 回复 */
@@ -60,6 +64,9 @@ const AssistantPanelContext = createContext<AssistantPanelContextValue>({
   activeConversationId: "",
   selectConversation: () => undefined,
   sendMessage: async () => undefined,
+  editLatestUserMessage: async () => undefined,
+  regenerateLatestAnswer: async () => undefined,
+  switchLatestCandidate: async () => undefined,
   createConversation: () => undefined,
   isStreaming: false,
   modelList: [],
@@ -85,6 +92,9 @@ export function AssistantPanelProvider({
   onMessagesChange,
   onNewConversation,
   onSelectConversation,
+  onEditLatestUserMessage,
+  onRegenerateLatestAnswer,
+  onSwitchLatestCandidate,
 }: {
   children: ReactNode;
   assistantOpen: boolean;
@@ -98,35 +108,42 @@ export function AssistantPanelProvider({
   onMessagesChange: (messages: ConversationSummary["messages"], title: string) => void;
   onNewConversation: () => void;
   onSelectConversation: (conversationId: string) => void;
+  onEditLatestUserMessage: (message: string) => Promise<void>;
+  onRegenerateLatestAnswer: () => Promise<void>;
+  onSwitchLatestCandidate: (candidateId: string) => Promise<void>;
 }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [modelList, setModelList] = useState<AssistantModelDetail[]>([]);
   const [currentModel, setCurrentModel] = useState<AssistantModelDetail | null>(null);
   const [assistMode, setAssistMode] = useState<AssistMode>("assist");
   const [selectedProject, setSelectedProject] = useState("none");
+  const defaultModelIdRef = useRef<string | null>(null);
+
   const loadModels = useCallback(async (preferredModelId?: string) => {
     const models = await assistantModelsApi.list();
+    const defaultModel = models.find((model) => model.isDefault) ?? models[0] ?? null;
+    const previousDefaultModelId = defaultModelIdRef.current;
+    const nextDefaultModelId = defaultModel?.id ?? null;
+    const defaultModelChanged = Boolean(previousDefaultModelId && nextDefaultModelId && previousDefaultModelId !== nextDefaultModelId);
+    defaultModelIdRef.current = nextDefaultModelId;
+
     setModelList(models);
     setCurrentModel((current) => {
       if (preferredModelId) {
-        return models.find((model) => model.id === preferredModelId) ?? models.find((model) => model.isDefault) ?? models[0] ?? null;
+        return models.find((model) => model.id === preferredModelId) ?? defaultModel;
+      }
+      if (defaultModelChanged) {
+        return defaultModel;
       }
       if (current) {
         const refreshedCurrent = models.find((model) => model.id === current.id);
-        if (refreshedCurrent) {
-          // 如果当前模型之前是默认模型，但刷新后不再是默认模型（用户在设置中更改了默认），
-          // 则自动切换到新的默认模型；否则保留用户手动选择的模型
-          if (current.isDefault && !refreshedCurrent.isDefault) {
-            return models.find((model) => model.isDefault) ?? refreshedCurrent;
-          }
-          return refreshedCurrent;
-        }
+        if (refreshedCurrent) return refreshedCurrent;
       }
-      return models.find((model) => model.isDefault) ?? models[0] ?? null;
+      return defaultModel;
     });
   }, []);
 
-  // 加载模型列表
+  // 应用启动时加载模型列表，初始选中默认模型
   useEffect(() => {
     let cancelled = false;
 
@@ -136,15 +153,8 @@ export function AssistantPanelProvider({
         if (cancelled) return;
         setModelList(models);
         const defaultModel = models.find((m) => m.isDefault) ?? models[0] ?? null;
+        defaultModelIdRef.current = defaultModel?.id ?? null;
         setCurrentModel(defaultModel);
-        // 将默认模型同步到后端运行时，确保首页对话使用正确的模型
-        if (defaultModel) {
-          try {
-            await chatApi.switchRuntimeModel(defaultModel.id);
-          } catch {
-            // 运行时模型同步失败不影响 UI，后端会在对话时使用服务端默认值
-          }
-        }
       } catch {
         // 加载失败时静默处理，UI 会显示加载状态
       }
@@ -154,15 +164,20 @@ export function AssistantPanelProvider({
     return () => { cancelled = true; };
   }, []);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, attachments: ChatAttachment[] = []) => {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
 
     const time = getTimeLabel();
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const userMsg: PanelMessage = { id: `user-${id}`, role: "user", text: trimmed, time };
+    const userMsg: PanelMessage = {
+      id: `user-${id}`,
+      role: "user",
+      text: trimmed,
+      time,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    };
 
-    // 先添加用户消息，AI 消息用占位
     const assistantMsg: PanelMessage = { id: `assistant-${id}`, role: "assistant", text: "", time };
     const initialMessages = [...messages, userMsg, assistantMsg];
     const nextTitle = messages.length > 0
@@ -173,7 +188,6 @@ export function AssistantPanelProvider({
     setIsStreaming(true);
 
     try {
-      // 构建上下文（将历史消息作为多轮对话）
       const historyText = messages.slice(-6).map((m) => `${m.role === "user" ? "用户" : "助手"}: ${m.text}`).join("\n");
       const fullMessage = messages.length > 0
         ? `[对话历史]\n${historyText}\n\n[当前消息]\n${trimmed}`
@@ -183,7 +197,6 @@ export function AssistantPanelProvider({
       const result = await chatApi.sendMessage(
         fullMessage,
         activeConversationId || "default",
-        // onDelta: 流式更新 AI 回复
         (delta) => {
           replyText += delta;
           onMessagesChange(
@@ -197,7 +210,6 @@ export function AssistantPanelProvider({
         { modelConfigId: currentModel?.id },
       );
 
-      // 确保最终文本完整
       const finalReply = result.reply || replyText;
       onMessagesChange(
         initialMessages.map((message) =>
@@ -219,12 +231,20 @@ export function AssistantPanelProvider({
   }, [activeConversationId, activeConversationTitle, currentModel?.id, isStreaming, messages, onMessagesChange]);
 
   const switchModel = useCallback(async (modelConfigId: string) => {
-    await chatApi.switchRuntimeModel(modelConfigId);
-    setCurrentModel((current) => {
-      if (current?.id === modelConfigId) return current;
-      return modelList.find((model) => model.id === modelConfigId) ?? current ?? null;
-    });
-  }, [modelList]);
+    // 这里只切换前端当前对话使用模型，不调用设置默认接口，也不落库修改默认模型。
+    const previousModel = currentModel;
+    const nextModel = modelList.find((model) => model.id === modelConfigId) ?? null;
+    if (previousModel?.id === modelConfigId) return;
+
+    setCurrentModel(nextModel ?? previousModel);
+    try {
+      await chatApi.switchRuntimeModel(modelConfigId);
+      await loadModels(modelConfigId);
+    } catch (error) {
+      setCurrentModel(previousModel);
+      throw error;
+    }
+  }, [currentModel, loadModels, modelList]);
 
   const refreshModels = useCallback(async (preferredModelId?: string) => {
     await loadModels(preferredModelId);
@@ -241,6 +261,9 @@ export function AssistantPanelProvider({
       activeConversationId,
       selectConversation: onSelectConversation,
       sendMessage,
+      editLatestUserMessage: onEditLatestUserMessage,
+      regenerateLatestAnswer: onRegenerateLatestAnswer,
+      switchLatestCandidate: onSwitchLatestCandidate,
       createConversation: onNewConversation,
       isStreaming,
       modelList,
@@ -261,8 +284,11 @@ export function AssistantPanelProvider({
       conversations,
       activeConversationId,
       onSelectConversation,
+      onEditLatestUserMessage,
       sendMessage,
       onNewConversation,
+      onRegenerateLatestAnswer,
+      onSwitchLatestCandidate,
       isStreaming,
       modelList,
       currentModel,
