@@ -1,7 +1,7 @@
 .scroll-area {
-  --scroll-area-size: var(--scrollbar-size, 10px);
-  --scroll-area-thumb: var(--scrollbar-thumb, rgba(101, 116, 139, 0.34));
-  --scroll-area-thumb-hover: var(--scrollbar-thumb-hover, rgba(71, 85, 105, 0.56));
+  --scroll-area-size: var(--scrollbar-size, 8px);
+  --scroll-area-thumb: var(--scrollbar-thumb, rgba(100, 116, 139, 0.42));
+  --scroll-area-thumb-hover: var(--scrollbar-thumb-hover, rgba(71, 85, 105, 0.62));
   --scroll-area-track: var(--scrollbar-track, transparent);
   min-width: 0;
   min-height: 0;
@@ -37,15 +37,25 @@
   background: var(--scroll-area-track);
 }
 
+.scroll-area::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .scroll-area::-webkit-scrollbar-thumb {
   min-height: 44px;
   background: var(--scroll-area-thumb);
   background-clip: content-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
 }
 
 .scroll-area::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-area-thumb-hover);
   background-clip: content-box;
+}
+
+.scroll-area::-webkit-scrollbar-corner {
+  background: transparent;
 }
