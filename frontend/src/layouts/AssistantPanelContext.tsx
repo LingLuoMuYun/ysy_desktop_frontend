@@ -29,6 +29,7 @@ interface AssistantPanelContextValue {
   messages: PanelMessage[];
   conversations: ConversationSummary[];
   activeConversationId: string;
+  activeConversationTitle: string;
   selectConversation: (conversationId: string) => void;
   /** 从任意页面向助手面板发送消息（异步，等待 AI 回复） */
   sendMessage: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
@@ -62,6 +63,7 @@ const AssistantPanelContext = createContext<AssistantPanelContextValue>({
   messages: [],
   conversations: [],
   activeConversationId: "",
+  activeConversationTitle: "",
   selectConversation: () => undefined,
   sendMessage: async () => undefined,
   editLatestUserMessage: async () => undefined,
@@ -259,6 +261,7 @@ export function AssistantPanelProvider({
       messages,
       conversations,
       activeConversationId,
+      activeConversationTitle,
       selectConversation: onSelectConversation,
       sendMessage,
       editLatestUserMessage: onEditLatestUserMessage,
@@ -283,6 +286,7 @@ export function AssistantPanelProvider({
       messages,
       conversations,
       activeConversationId,
+      activeConversationTitle,
       onSelectConversation,
       onEditLatestUserMessage,
       sendMessage,

@@ -586,6 +586,20 @@ body {
   text-align: center;
 }
 
+.typewriter-cursor {
+  font-weight: 300;
+  color: var(--color-text-secondary, #888);
+}
+
+.typewriter-cursor--blink {
+  animation: typewriter-blink 1s step-end infinite;
+}
+
+@keyframes typewriter-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .home-chat {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -648,30 +662,20 @@ body {
   transition: filter 0.18s ease, opacity 0.18s ease;
 }
 
-.chat-message--regenerating .chat-message__content {
-  filter: blur(3px);
-  opacity: 0.46;
-  user-select: none;
-  pointer-events: none;
+/* 重新生成中的紧凑加载状态 */
+.chat-message__regenerating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
 }
 
-.chat-message__loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  min-height: 48px;
+.chat-message__regenerating svg {
+  flex-shrink: 0;
   color: #1677ff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.48);
-  border-radius: 8px;
-}
-
-.chat-message__loading-overlay svg {
   animation: chat-loading-spin 0.9s linear infinite;
 }
 
@@ -2084,17 +2088,24 @@ body {
   border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
   white-space: nowrap;
 }
 
-.suggestion-bubble:hover {
+.suggestion-bubble--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.suggestion-bubble--visible:hover {
   border-color: var(--blue);
   box-shadow: 0 2px 12px rgba(51, 119, 255, 0.12);
   transform: translateY(-1px);
 }
 
-.suggestion-bubble:active {
+.suggestion-bubble--visible:active {
   transform: scale(0.97);
 }
 
@@ -2130,16 +2141,23 @@ body {
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
 }
 
-.suggestion-refresh:hover {
+.suggestion-refresh--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.suggestion-refresh--visible:hover {
   color: var(--blue);
   background: var(--blue-soft);
   border-color: transparent;
 }
 
-.suggestion-refresh:active {
+.suggestion-refresh--visible:active {
   transform: scale(0.96);
 }
 
@@ -5445,8 +5463,13 @@ body {
 }
 
 .assistant-header strong {
+  display: block;
+  max-width: 190px;
+  overflow: hidden;
   font-size: 16px;
   line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .assistant-header__tools {
@@ -5519,9 +5542,8 @@ body {
 
 .assistant-history__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
   min-height: 40px;
   padding: 0 10px;
   color: var(--text);
@@ -5533,6 +5555,21 @@ body {
   box-shadow: 0 1px 2px rgb(24 61 118 / 5%);
 }
 
+.assistant-history__item-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
 .assistant-history__item:hover,
 .assistant-history__item--active {
   color: var(--blue);
@@ -5541,7 +5578,7 @@ body {
   box-shadow: inset 3px 0 0 var(--blue), 0 4px 12px rgb(24 61 118 / 10%);
 }
 
-.assistant-history__item span {
+.assistant-history__item-main span {
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
@@ -5549,7 +5586,7 @@ body {
   white-space: nowrap;
 }
 
-.assistant-history__item time {
+.assistant-history__item-main time {
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -5718,8 +5755,9 @@ body {
   justify-content: center;
   gap: 12px;
   min-height: 236px;
-  color: #697386;
+  color: #1a1a2e;
   font-size: 14px;
+  font-weight: 700;
 }
 
 .assistant-empty__icon {

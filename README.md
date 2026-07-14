@@ -120,7 +120,7 @@ cd frontend
 pnpm run electron:dev
 ```
 
-该命令会启动 Vite `http://localhost:5174/`，等待服务可访问后打开 Electron。桌面壳使用 Windows/macOS 系统原生标题栏，初始最小窗口尺寸为 `1100x720`。
+该命令会启动 Vite `http://localhost:5174/`，等待服务可访问后打开 Electron。桌面壳在 Windows 使用页面内自定义标题栏和窗口控制，macOS 保留系统原生标题栏，初始最小窗口尺寸为 `1100x720`。
 
 默认 AI 助手后端地址为 `http://10.0.1.5:8765`，默认环境业务后端地址为 `http://10.0.1.5:8000`。如需临时切换：
 

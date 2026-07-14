@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUp, Check, LoaderCircle, Lightbulb, Pencil, RefreshCw, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, Check, Copy, LoaderCircle, Lightbulb, Pencil, RefreshCw, RotateCcw, X } from "lucide-react";
 import {
   mapFilesToChatAttachments,
   MessageAttachmentList,
@@ -60,6 +60,21 @@ function getCurrentTimeLabel() {
   }).format(new Date());
 }
 
+type TimePeriod = "早上" | "上午" | "中午" | "下午" | "晚上";
+
+export function getTimePeriod(): TimePeriod {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 8) return "早上";
+  if (hour >= 8 && hour < 11) return "上午";
+  if (hour >= 11 && hour < 13) return "中午";
+  if (hour >= 13 && hour < 18) return "下午";
+  return "晚上";
+}
+
+export function getGreeting(): string {
+  return `${getTimePeriod()}好，今天需要我做些什么？`;
+}
+
 export function HomePage({
   conversationId = "default",
   messages = [],
@@ -77,8 +92,12 @@ export function HomePage({
   const [activeSkills, setActiveSkills] = useState<SkillOption[]>([]);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
+  const [visibleSuggestionCount, setVisibleSuggestionCount] = useState(0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [regeneratingAssistantMessageId, setRegeneratingAssistantMessageId] = useState("");
+  const [copiedMessageId, setCopiedMessageId] = useState("");
+  const [displayedGreeting, setDisplayedGreeting] = useState("");
+  const [greetingComplete, setGreetingComplete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +114,48 @@ export function HomePage({
     if (!isChatting) return;
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [isChatting, latestMessage?.id, latestMessage?.text]);
+
+  // 打字机效果：每次进入首页时逐字显示问候语
+  useEffect(() => {
+    if (isChatting) return;
+
+    const fullGreeting = getGreeting();
+    setDisplayedGreeting("");
+    setGreetingComplete(false);
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < fullGreeting.length) {
+        setDisplayedGreeting(fullGreeting.slice(0, index + 1));
+        index++;
+      } else {
+        setGreetingComplete(true);
+        clearInterval(interval);
+      }
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [isChatting]);
+
+  // 推荐词逐个跳出效果
+  useEffect(() => {
+    if (isChatting) return;
+
+    setVisibleSuggestionCount(0);
+    const total = currentSuggestions.length + 1; // +1 for the refresh button
+    let index = 0;
+
+    const interval = setInterval(() => {
+      if (index < total) {
+        setVisibleSuggestionCount(index + 1);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 150);
+
+    return () => clearInterval(interval);
+  }, [currentSetIndex, isChatting]);
 
   // 进入首页时刷新模型元数据；只有默认模型变化时才自动覆盖当前使用模型。
   useEffect(() => {
@@ -261,6 +322,13 @@ export function HomePage({
     }
   }, [isStreaming, latestAssistantMessage?.id, onRegenerateLatestAnswer, regeneratingAssistantMessageId]);
 
+  const handleCopyMessage = useCallback((message: ChatMessage) => {
+    void navigator.clipboard.writeText(message.text).then(() => {
+      setCopiedMessageId(message.id);
+      setTimeout(() => setCopiedMessageId(""), 2000);
+    });
+  }, []);
+
   const handleSwitchAdjacentCandidate = useCallback((message: ChatMessage, direction: -1 | 1) => {
     if (!message.candidates || !onSwitchLatestCandidate) return;
     const activeIndex = message.candidates.findIndex((candidate) => candidate.active);
@@ -351,7 +419,10 @@ export function HomePage({
     <section className={`home-page${isChatting ? " home-page--chat" : ""}`}>
       {!isChatting ? (
         <div className="home-center">
-          <h1>今天想让这台机器帮你做什么？</h1>
+          <h1>
+            {displayedGreeting}
+            <span className={`typewriter-cursor${greetingComplete ? " typewriter-cursor--blink" : ""}`}>|</span>
+          </h1>
 
           {/* 对话框 */}
           <div className="prompt-box">
@@ -387,9 +458,9 @@ export function HomePage({
 
           {/* 推荐词盒子 */}
           <div className={`suggestion-list${isFading ? " suggestion-list--fading" : ""}`}>
-            {currentSuggestions.map((item) => (
+            {currentSuggestions.map((item, index) => (
               <button
-                className="suggestion-bubble"
+                className={`suggestion-bubble${index < visibleSuggestionCount ? " suggestion-bubble--visible" : ""}`}
                 key={item.id}
                 type="button"
                 onClick={() => handleSuggestionClick(item.text)}
@@ -405,7 +476,7 @@ export function HomePage({
               </button>
             ))}
             <button
-              className="suggestion-refresh"
+              className={`suggestion-refresh${currentSuggestions.length < visibleSuggestionCount ? " suggestion-refresh--visible" : ""}`}
               type="button"
               onClick={handleRefreshSuggestions}
               title="换一批推荐"
@@ -446,9 +517,14 @@ export function HomePage({
                           onClick={() => void handleSubmitEditMessage()}
                         >
                           <Check size={13} />
-                          保存并重新生成
+                          重新生成
                         </button>
                       </div>
+                    </div>
+                  ) : message.id === regeneratingAssistantMessageId ? (
+                    <div className="chat-message__regenerating" aria-live="polite" role="status">
+                      <LoaderCircle size={18} />
+                      <span>生成中</span>
                     </div>
                   ) : message.text ? (
                     <div className="chat-message__content-wrap">
@@ -462,12 +538,6 @@ export function HomePage({
                           }
                         />
                       </div>
-                      {message.id === regeneratingAssistantMessageId ? (
-                        <div className="chat-message__loading-overlay" aria-live="polite" role="status">
-                          <LoaderCircle size={20} />
-                          <span>生成中</span>
-                        </div>
-                      ) : null}
                     </div>
                   ) : (
                     <div className="chat-message__streaming">
@@ -514,6 +584,25 @@ export function HomePage({
                       >
                         <Pencil size={13} />
                         编辑
+                      </button>
+                    ) : null}
+                    {message.role === "assistant" ? (
+                      <button
+                        disabled={!message.text || isStreaming}
+                        type="button"
+                        onClick={() => handleCopyMessage(message)}
+                      >
+                        {copiedMessageId === message.id ? (
+                          <>
+                            <Check size={13} />
+                            已复制
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={13} />
+                            复制
+                          </>
+                        )}
                       </button>
                     ) : null}
                     {message.role === "assistant" && message.id === latestAssistantMessage?.id && onRegenerateLatestAnswer ? (

@@ -55,6 +55,22 @@ function getSessionIdentity(conversation: Pick<ConversationSummary, "id" | "sess
   return conversation.sessionKey || `runtime:${conversation.id}`;
 }
 
+/** 将 updatedAt 转为可比较的排序键（降序靠前 = 值更大）。 */
+function getSortKey(updatedAt: string): string {
+  // "MM/DD HH:MM" → "MMDDHHMM"
+  const dateTimeMatch = updatedAt.match(/^(\d{2})\/(\d{2})\s(\d{2}):(\d{2})$/);
+  if (dateTimeMatch) return dateTimeMatch.slice(1).join("");
+  // "HH:MM" → 当天用 "9999HHMM" 排在 server 格式之前
+  const timeMatch = updatedAt.match(/^(\d{2}):(\d{2})$/);
+  if (timeMatch) return `9999${timeMatch[1]}${timeMatch[2]}`;
+  // fallback: 返回原字符串
+  return updatedAt;
+}
+
+function sortByUpdatedAtDesc(conversations: ConversationSummary[]): ConversationSummary[] {
+  return [...conversations].sort((a, b) => getSortKey(b.updatedAt).localeCompare(getSortKey(a.updatedAt)));
+}
+
 function createEmptyConversation(): ConversationSummary {
   return {
     id: createConversationId(),
@@ -284,8 +300,8 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
         });
         const nextConversations = [
           ...localConversations.filter((conversation) => conversation.messages.length === 0),
-          ...mergedServerConversations,
-          ...localConversations.filter((conversation) => conversation.messages.length > 0),
+          ...sortByUpdatedAtDesc(mergedServerConversations),
+          ...sortByUpdatedAtDesc(localConversations.filter((conversation) => conversation.messages.length > 0)),
         ];
         return nextConversations.length > 0 ? nextConversations : [createEmptyConversation()];
       });
@@ -380,9 +396,11 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
   ) => {
     const sessionKey = conversation.sessionKey || `runtime:${conversation.id}`;
     const detail = await chatApi.getSession(sessionKey);
-    setHomeConversations((current) => current.map((item) =>
-      item.id === conversation.id ? mapSessionDetail(detail, { ...item, sessionKey }, options) : item,
-    ));
+    setHomeConversations((current) => {
+      const refreshed = mapSessionDetail(detail, { ...conversation, sessionKey }, options);
+      const rest = current.filter((item) => item.id !== conversation.id);
+      return [refreshed, ...rest];
+    });
   }, []);
 
   const handleEditLatestUserMessage = useCallback(async (message: string) => {
@@ -408,9 +426,11 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
   const handleSwitchLatestCandidate = useCallback(async (candidateId: string) => {
     const target = activeHomeConversation;
     const detail = await chatApi.switchLatestCandidate(target.id, candidateId);
-    setHomeConversations((current) => current.map((item) =>
-      item.id === target.id ? mapSessionDetail(detail, item) : item,
-    ));
+    setHomeConversations((current) => {
+      const updated = mapSessionDetail(detail, target);
+      const rest = current.filter((item) => item.id !== target.id);
+      return [updated, ...rest];
+    });
   }, [activeHomeConversation]);
 
   const handleCancelDeleteConversation = useCallback(() => {

@@ -158,7 +158,7 @@ frontend/
 
 ## 桌面壳约定
 
-- Windows/macOS 使用系统原生标题栏
+- Windows 使用页面内自定义标题栏和窗口控制；macOS 保留系统原生标题栏
 - 初始最小窗口尺寸 `1100×720`
 - 外部链接交给系统浏览器打开
 - `contextIsolation: true`，`nodeIntegration: false`，`sandbox: true`

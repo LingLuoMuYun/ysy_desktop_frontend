@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowRight, Bot, Check, History, LoaderCircle, MessageSquarePlus, Pencil, RefreshCw, RotateCcw, SendHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, History, LoaderCircle, MessageSquarePlus, Pencil, RefreshCw, RotateCcw, SendHorizontal, Tag } from "lucide-react";
+import { getTimePeriod } from "../pages/HomePage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RouteKey } from "../app/router";
 import {
@@ -10,7 +11,7 @@ import {
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect } from "../components/PromptToolbar";
 import { ScrollArea } from "../components/ScrollArea";
-import { useAssistantPanel } from "./AssistantPanelContext";
+import { useAssistantPanel, type PanelMessage } from "./AssistantPanelContext";
 
 interface AssistantPanelProps {
   activeRoute: RouteKey;
@@ -38,6 +39,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
     messages,
     conversations,
     activeConversationId,
+    activeConversationTitle,
     selectConversation,
     sendMessage,
     editLatestUserMessage,
@@ -50,6 +52,9 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
   const [editingMessageId, setEditingMessageId] = useState("");
   const [editingValue, setEditingValue] = useState("");
   const [regeneratingAssistantMessageId, setRegeneratingAssistantMessageId] = useState("");
+  const [copiedMessageId, setCopiedMessageId] = useState("");
+  const [displayedGreeting, setDisplayedGreeting] = useState("");
+  const [greetingComplete, setGreetingComplete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -62,11 +67,35 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
   const hasMessages = messages.length > 0;
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
   const latestAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant");
+  const panelTitle = hasMessages && activeConversationTitle ? activeConversationTitle : "新的对话";
 
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // 打字机效果：空状态时逐字显示问候语
+  useEffect(() => {
+    if (hasMessages) return;
+
+    const period = getTimePeriod();
+    const fullText = `${period}好\n今天需要我做些什么？`;
+    setDisplayedGreeting("");
+    setGreetingComplete(false);
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < fullText.length) {
+        setDisplayedGreeting(fullText.slice(0, index + 1));
+        index++;
+      } else {
+        setGreetingComplete(true);
+        clearInterval(interval);
+      }
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [hasMessages]);
 
   const handleSend = async () => {
     const trimmed = draft.trim();
@@ -136,6 +165,13 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
     }
   };
 
+  const handleCopyMessage = (message: PanelMessage) => {
+    void navigator.clipboard.writeText(message.text).then(() => {
+      setCopiedMessageId(message.id);
+      setTimeout(() => setCopiedMessageId(""), 2000);
+    });
+  };
+
   const handleSwitchAdjacentCandidate = (message: (typeof messages)[number], direction: -1 | 1) => {
     if (!message.candidates) return;
     const activeIndex = message.candidates.findIndex((candidate) => candidate.active);
@@ -161,9 +197,16 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
     <aside className="assistant-panel" aria-label="AI 助手">
       <div className="assistant-header">
         <div className="assistant-header__title-row">
-          <strong>AI 助手</strong>
+          <strong title={panelTitle}>{panelTitle}</strong>
         </div>
         <div className="assistant-header__tools">
+          <button
+            type="button"
+            title="标注（暂未实现）"
+            aria-label="标注"
+          >
+            <Tag size={14} />
+          </button>
           <button
             type="button"
             title="历史对话"
@@ -192,20 +235,24 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
           {conversations.length > 0 ? (
             <ScrollArea className="assistant-history__list" aria-label="AI 助手历史对话列表">
               {conversations.map((conversation) => (
-                <button
+                <div
                   className={`assistant-history__item${
                     conversation.id === activeConversationId ? " assistant-history__item--active" : ""
                   }`}
                   key={conversation.id}
-                  type="button"
-                  onClick={() => {
-                    selectConversation(conversation.id);
-                    setHistoryOpen(false);
-                  }}
                 >
-                  <span>{conversation.title}</span>
-                  <time>{conversation.updatedAt}</time>
-                </button>
+                  <button
+                    className="assistant-history__item-main"
+                    type="button"
+                    onClick={() => {
+                      selectConversation(conversation.id);
+                      setHistoryOpen(false);
+                    }}
+                  >
+                    <span>{conversation.title}</span>
+                    <time>{conversation.updatedAt}</time>
+                  </button>
+                </div>
               ))}
             </ScrollArea>
           ) : (
@@ -248,6 +295,11 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
                       </button>
                     </div>
                   </div>
+                ) : msg.id === regeneratingAssistantMessageId ? (
+                  <div className="chat-message__regenerating" aria-live="polite" role="status">
+                    <LoaderCircle size={18} />
+                    <span>生成中</span>
+                  </div>
                 ) : msg.text ? (
                   <div className="chat-message__content-wrap">
                     <div className="chat-message__content">
@@ -260,12 +312,6 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
                         }
                       />
                     </div>
-                    {msg.id === regeneratingAssistantMessageId ? (
-                      <div className="chat-message__loading-overlay" aria-live="polite" role="status">
-                        <LoaderCircle size={20} />
-                        <span>生成中</span>
-                      </div>
-                    ) : null}
                   </div>
                 ) : (
                   <div className="chat-message__streaming">
@@ -314,6 +360,25 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
                       编辑
                     </button>
                   ) : null}
+                  {msg.role === "assistant" ? (
+                    <button
+                      disabled={!msg.text || isStreaming}
+                      type="button"
+                      onClick={() => handleCopyMessage(msg)}
+                    >
+                      {copiedMessageId === msg.id ? (
+                        <>
+                          <Check size={13} />
+                          已复制
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          复制
+                        </>
+                      )}
+                    </button>
+                  ) : null}
                   {msg.role === "assistant" && msg.id === latestAssistantMessage?.id ? (
                     <button
                       disabled={isStreaming || Boolean(regeneratingAssistantMessageId)}
@@ -333,10 +398,15 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
       ) : (
         <>
           <div className="assistant-empty">
-            <span className="assistant-empty__icon" aria-hidden="true">
-              <Bot size={17} />
-            </span>
-            <span>{currentModel ? `使用 ${currentModel.name}` : "开始新的聊天"}</span>
+            {displayedGreeting.split("\n").map((line, i, arr) => (
+              <span key={i}>
+                {line}
+                {i < arr.length - 1 ? <br /> : null}
+                {i === arr.length - 1 ? (
+                  <span className={`typewriter-cursor${greetingComplete ? " typewriter-cursor--blink" : ""}`}>|</span>
+                ) : null}
+              </span>
+            ))}
           </div>
           <div className="assistant-suggestions">
             {prompts.map((prompt) => (

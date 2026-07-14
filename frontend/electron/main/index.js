@@ -9,6 +9,7 @@ const ENVIRONMENTS_API_BASE_URL = process.env.ENVIRONMENTS_API_BASE_URL
     || process.env.VITE_API_BASE_URL
     || "http://10.0.78.12:8000";
 const isMac = process.platform === "darwin";
+const isWindows = process.platform === "win32";
 let mainWindow = null;
 const ENVIRONMENT_LIST_PAGE_SIZE = 20;
 const ENVIRONMENT_RECOVERY_LIMIT = 200;
@@ -198,8 +199,15 @@ function createWindow() {
         fullscreenable: true,
         title: "桌面智算",
         icon: getAppIconPath(),
-        frame: true,
-        titleBarStyle: "default",
+        frame: !isWindows,
+        titleBarStyle: isWindows ? "hidden" : "default",
+        titleBarOverlay: isWindows
+            ? {
+                color: "#ffffff",
+                symbolColor: "#5f6672",
+                height: 48,
+            }
+            : false,
         autoHideMenuBar: !isMac,
         backgroundColor: "#ffffff",
         webPreferences: {
