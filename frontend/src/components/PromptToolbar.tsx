@@ -86,7 +86,7 @@ export function PromptToolbar({
     const availableModels = modelList.filter((model) => model.status === "可用");
     return availableModels.length > 0 ? availableModels : modelList;
   }, [modelList]);
-  const activeModelLabel = currentModel ? `模型：${currentModel.name}` : (modelList.length > 0 ? "选择模型" : "暂无模型");
+  const activeModelLabel = currentModel ? currentModel.name : (modelList.length > 0 ? "选择模型" : "暂无模型");
 
   const handleModelSelect = async (modelId: string) => {
     if (modelId === currentModel?.id || switchingModelId) return;
@@ -292,7 +292,7 @@ export function PromptToolbar({
                 <ModelVendorOptionIcon provider={model.provider} />
                 <div className="prompt-dropdown__item-text">
                   <span className="prompt-dropdown__item-label">{model.name}</span>
-                  <span className="prompt-dropdown__item-desc">Provider: {model.provider} · 上下文 {model.context}</span>
+                  <span className="prompt-dropdown__item-desc">{model.provider}</span>
                 </div>
                 <StatusBadge label={switchingModelId === model.id ? "切换中" : model.status} tone={model.tone} />
                 {model.id === currentModel?.id && <span className="prompt-dropdown__check" />}
