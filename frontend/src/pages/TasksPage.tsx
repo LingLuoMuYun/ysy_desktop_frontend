@@ -1,5 +1,6 @@
 import { Copy, Plus, Stethoscope } from "lucide-react";
 import { ConfirmPlaceholder } from "../components/ConfirmPlaceholder";
+import { ScrollArea } from "../components/ScrollArea";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toolbar } from "../components/Toolbar";
 import { tasks } from "../mocks/prototypeData";
@@ -22,7 +23,7 @@ export function TasksPage() {
         <button type="button">全部项目</button>
         <button type="button">全部状态</button>
       </Toolbar>
-      <div className="table-list">
+      <ScrollArea className="table-list">
         {tasks.map((task) => (
           <article className="table-card" key={task.id}>
             <div className="table-card__main">
@@ -56,7 +57,7 @@ export function TasksPage() {
             </div>
           </article>
         ))}
-      </div>
+      </ScrollArea>
       <footer className="count-footer">共 {tasks.length} 条记录</footer>
     </section>
   );

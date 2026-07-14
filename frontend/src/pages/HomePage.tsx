@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Lightbulb, RefreshCw, X } from "lucide-react";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect, type SkillOption } from "../components/PromptToolbar";
+import { ScrollArea } from "../components/ScrollArea";
 import { useAssistantPanel } from "../layouts/AssistantPanelContext";
 import { suggestionSets, type SuggestionItem } from "../mocks/prototypeData";
 import { chatApi } from "../services/chatApi";
@@ -528,7 +529,7 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
         </div>
       ) : (
         <div className="home-chat">
-          <div className="home-chat__messages" aria-live="polite">
+          <ScrollArea className="home-chat__messages" aria-live="polite">
             {messages.map((message) => (
               <article
                 className={`chat-message chat-message--${message.role}`}
@@ -574,7 +575,7 @@ export function HomePage({ messages = [], onConversationTitleChange, onMessagesC
               </article>
             ))}
             <div ref={messagesEndRef} />
-          </div>
+          </ScrollArea>
 
           <div className="chat-composer">
             <div className="prompt-box prompt-box--chat">

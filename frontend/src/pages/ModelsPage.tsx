@@ -1,5 +1,6 @@
 import { ClipboardCheck, Copy, Link2, Plus, Rocket } from "lucide-react";
 import { ConfirmPlaceholder } from "../components/ConfirmPlaceholder";
+import { ScrollArea } from "../components/ScrollArea";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toolbar } from "../components/Toolbar";
 import { models } from "../mocks/prototypeData";
@@ -18,7 +19,7 @@ export function ModelsPage() {
         <button type="button">模型类型 全部</button>
         <button type="button">状态 全部</button>
       </Toolbar>
-      <div className="table-list">
+      <ScrollArea className="table-list">
         {models.map((model) => (
           <article className="asset-row" key={model.id}>
             <div>
@@ -55,7 +56,7 @@ export function ModelsPage() {
             </div>
           </article>
         ))}
-      </div>
+      </ScrollArea>
       <footer className="count-footer">共 {models.length} 条记录</footer>
     </section>
   );

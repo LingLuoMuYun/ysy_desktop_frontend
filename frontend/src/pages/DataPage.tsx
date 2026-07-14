@@ -1,5 +1,6 @@
 import { ClipboardCheck, Copy, Link2, Plus } from "lucide-react";
 import { ConfirmPlaceholder } from "../components/ConfirmPlaceholder";
+import { ScrollArea } from "../components/ScrollArea";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toolbar } from "../components/Toolbar";
 import { datasets } from "../mocks/prototypeData";
@@ -18,7 +19,7 @@ export function DataPage() {
         <button type="button">适用类型 全部</button>
         <button type="button">状态 全部</button>
       </Toolbar>
-      <div className="table-list">
+      <ScrollArea className="table-list">
         {datasets.map((dataset) => (
           <article className="asset-row" key={dataset.id}>
             <div>
@@ -51,7 +52,7 @@ export function DataPage() {
             </div>
           </article>
         ))}
-      </div>
+      </ScrollArea>
       <footer className="count-footer">共 {datasets.length} 条记录</footer>
     </section>
   );

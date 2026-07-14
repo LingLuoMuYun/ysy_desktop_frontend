@@ -1,0 +1,51 @@
+.scroll-area {
+  --scroll-area-size: var(--scrollbar-size, 10px);
+  --scroll-area-thumb: var(--scrollbar-thumb, rgba(101, 116, 139, 0.34));
+  --scroll-area-thumb-hover: var(--scrollbar-thumb-hover, rgba(71, 85, 105, 0.56));
+  --scroll-area-track: var(--scrollbar-track, transparent);
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--scroll-area-thumb) var(--scroll-area-track);
+  scrollbar-width: thin;
+}
+
+.scroll-area--y {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.scroll-area--x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.scroll-area--both {
+  overflow: auto;
+}
+
+.scroll-area--stable {
+  scrollbar-gutter: stable;
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: var(--scroll-area-size);
+  height: var(--scroll-area-size);
+}
+
+.scroll-area::-webkit-scrollbar-track {
+  background: var(--scroll-area-track);
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  background: var(--scroll-area-thumb);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-area-thumb-hover);
+  background-clip: content-box;
+}

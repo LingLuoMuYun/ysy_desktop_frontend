@@ -1,5 +1,6 @@
 import { Copy, Plus, Rocket } from "lucide-react";
 import { ConfirmPlaceholder } from "../components/ConfirmPlaceholder";
+import { ScrollArea } from "../components/ScrollArea";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toolbar } from "../components/Toolbar";
 import { projects } from "../mocks/prototypeData";
@@ -12,7 +13,7 @@ export function ProjectsPage() {
         <button type="button">全部项目类型</button>
         <button type="button">全部状态</button>
       </Toolbar>
-      <div className="project-grid">
+      <ScrollArea className="project-grid">
         {projects.map((project) => (
           <article className="project-card" key={project.id}>
             <div className="card-heading">
@@ -43,7 +44,7 @@ export function ProjectsPage() {
             </div>
           </article>
         ))}
-      </div>
+      </ScrollArea>
       <footer className="count-footer">共 {projects.length} 个项目</footer>
     </section>
   );

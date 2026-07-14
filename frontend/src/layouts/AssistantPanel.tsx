@@ -4,6 +4,7 @@ import type { RouteKey } from "../app/router";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { PromptToolbar, ProjectSelect } from "../components/PromptToolbar";
 import { StatusBadge } from "../components/StatusBadge";
+import { ScrollArea } from "../components/ScrollArea";
 import type { AssistantModelDetail } from "../types/domain";
 import { useAssistantPanel } from "./AssistantPanelContext";
 
@@ -191,7 +192,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
         <div className="assistant-history" aria-label="历史对话">
           <div className="assistant-history__title">历史对话</div>
           {conversations.length > 0 ? (
-            <div className="assistant-history__list">
+            <ScrollArea className="assistant-history__list" aria-label="AI 助手历史对话列表">
               {conversations.map((conversation) => (
                 <button
                   className={`assistant-history__item${
@@ -208,7 +209,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
                   <time>{conversation.updatedAt}</time>
                 </button>
               ))}
-            </div>
+            </ScrollArea>
           ) : (
             <div className="assistant-history__empty">暂无历史对话</div>
           )}
@@ -216,7 +217,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
       ) : null}
 
       {hasMessages ? (
-        <div className="assistant-messages" aria-live="polite">
+        <ScrollArea className="assistant-messages" aria-live="polite">
           {messages.map((msg) => (
             <article
               className={`chat-message chat-message--${msg.role}`}
@@ -244,7 +245,7 @@ export function AssistantPanel({ activeRoute }: AssistantPanelProps) {
             </article>
           ))}
           <div ref={messagesEndRef} />
-        </div>
+        </ScrollArea>
       ) : (
         <>
           <div className="assistant-empty">
