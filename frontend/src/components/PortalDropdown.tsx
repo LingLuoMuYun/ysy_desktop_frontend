@@ -26,12 +26,21 @@ function getFixedStyle(
   const rect = el.getBoundingClientRect();
   const gap = 6;
 
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+
   const style: CSSProperties = {
     position: "fixed",
     zIndex: 1000,
-    top: rect.top,
-    transform: `translateY(calc(-100% - ${gap}px))`,
   };
+
+  // 优先向下展开；下方空间不足时向上展开
+  if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+    style.top = rect.bottom + gap;
+  } else {
+    style.top = rect.top;
+    style.transform = `translateY(calc(-100% - ${gap}px))`;
+  }
 
   if (align === "right") {
     style.right = window.innerWidth - rect.right;

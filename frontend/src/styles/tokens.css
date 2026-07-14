@@ -35,8 +35,8 @@
   --scrollbar-radius: var(--radius-pill);
   --app-min-width: 480px;
   --app-min-height: 400px;
-  --sidebar-width: 78px;
-  --sidebar-compact-width: 76px;
+  --sidebar-width: 66px;
+  --sidebar-compact-width: 64px;
   --history-width: 0px;
   --assistant-width: 354px;
   --topbar-height: 56px;

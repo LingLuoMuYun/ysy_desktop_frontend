@@ -1,4 +1,6 @@
-import { Bot, Code2, Grid2X2, History, RefreshCw, SquarePen } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Bot, Check, Code2, Grid2X2, History, Pencil, RefreshCw, SquarePen, X } from "lucide-react";
 import { SidebarToggle } from "../components/SidebarToggle";
 
 interface WindowTitleBarProps {
@@ -8,6 +10,7 @@ interface WindowTitleBarProps {
   resourceOverviewOpen: boolean;
   showResourceControls?: boolean;
   onRefreshPage: () => void;
+  onRenameModule?: (newTitle: string) => void;
   onToggleAssistant?: () => void;
   onToggleConversationHistory?: () => void;
   onNewConversation?: () => void;
@@ -21,11 +24,115 @@ export function WindowTitleBar({
   resourceOverviewOpen,
   showResourceControls = true,
   onRefreshPage,
+  onRenameModule,
   onToggleAssistant,
   onToggleConversationHistory,
   onNewConversation,
   onToggleResourceOverview,
 }: WindowTitleBarProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renaming]);
+
+  const handleStartRename = useCallback(() => {
+    setRenaming(true);
+    setRenameValue(moduleLabel || "");
+    setContextMenu(null);
+  }, [moduleLabel]);
+
+  const handleSubmitRename = useCallback(() => {
+    if (renameValue.trim() && onRenameModule) {
+      onRenameModule(renameValue.trim());
+    }
+    setRenaming(false);
+    setRenameValue("");
+  }, [renameValue, onRenameModule]);
+
+  const handleCancelRename = useCallback(() => {
+    setRenaming(false);
+    setRenameValue("");
+  }, []);
+
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmitRename();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancelRename();
+      }
+    },
+    [handleSubmitRename, handleCancelRename],
+  );
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!onRenameModule) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, [onRenameModule]);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const renameInput = renaming ? (
+    <div className="titlebar-rename">
+      <input
+        ref={renameInputRef}
+        className="titlebar-rename-input"
+        value={renameValue}
+        onChange={(e) => setRenameValue(e.target.value)}
+        onKeyDown={handleRenameKeyDown}
+        onBlur={handleSubmitRename}
+        placeholder="输入新名称"
+      />
+      <button
+        className="titlebar-rename-confirm"
+        type="button"
+        title="确认"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          handleSubmitRename();
+        }}
+      >
+        <Check size={13} />
+      </button>
+      <button
+        className="titlebar-rename-cancel"
+        type="button"
+        title="取消"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          handleCancelRename();
+        }}
+      >
+        <X size={13} />
+      </button>
+    </div>
+  ) : null;
+
+  const moduleLabelElement = moduleLabel ? (
+    renaming ? renameInput : (
+      <strong
+        className="titlebar-module-label"
+        title="双击或右键重命名"
+        onDoubleClick={() => { if (onRenameModule) handleStartRename(); }}
+        onContextMenu={handleContextMenu}
+      >
+        {moduleLabel}
+      </strong>
+    )
+  ) : null;
+
   return (
     <header className="home-toolbar">
       <div className="titlebar-left">
@@ -51,10 +158,10 @@ export function WindowTitleBar({
               <SquarePen size={16} />
               <span className="titlebar-icon-tip">新对话</span>
             </button>
-            {moduleLabel ? <strong className="titlebar-module-label">{moduleLabel}</strong> : null}
+            {moduleLabelElement}
           </>
         ) : (
-          <strong className="titlebar-module-label">{moduleLabel}</strong>
+          moduleLabelElement
         )}
       </div>
       <div className="titlebar-right">
@@ -107,6 +214,36 @@ export function WindowTitleBar({
           </>
         )}
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu &&
+        createPortal(
+          <div
+            className="context-menu-backdrop"
+            onClick={handleCloseContextMenu}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleCloseContextMenu();
+            }}
+          >
+            <div
+              className="context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              role="menu"
+            >
+              <button
+                className="context-menu__item"
+                type="button"
+                role="menuitem"
+                onClick={handleStartRename}
+              >
+                <Pencil size={13} />
+                重命名
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </header>
   );
 }

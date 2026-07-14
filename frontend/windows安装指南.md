@@ -185,8 +185,15 @@ pnpm run dev
 在 `frontend` 目录运行：
 
 ```powershell
+# 基本命令
+pnpm run electron:package:win
+
+# 如果 GitHub 下载慢/失败，使用国内镜像（推荐）
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
 pnpm run electron:package:win
 ```
+
+> **如果打包报错**，先运行补丁脚本：`node scripts/patch-electron-builder.cjs`（参见 [3.11](#311-开发者打包报错-cannot-read-properties-of-undefined-reading-readwrite) 和 [3.12](#312-开发者打包报错-eperm-operation-not-permitted-rename--win-unpackedtmp)）。
 
 成功后产物位于：
 
@@ -296,7 +303,43 @@ pnpm install
 pnpm config set registry https://registry.npmjs.org
 ```
 
-### 3.10 开发者：重新干净安装依赖
+### 3.10 开发者：打包时 Electron 下载失败（ETIMEDOUT）
+
+从 GitHub 下载 Electron 二进制文件可能超时（尤其在网络受限环境）。
+
+**解决方法 — 使用国内镜像：**
+
+```powershell
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+pnpm run electron:package:win
+```
+
+也可以写入 `package.json` scripts 持久化，或每次手动设置环境变量。
+
+### 3.11 开发者：打包报错 `Cannot read properties of undefined (reading 'ReadWrite')`
+
+**原因**：`electron-builder@26.15.3` 与 `@electron/get@3.0.0` 存在兼容性 bug——`ElectronDownloadCacheMode` 枚举不存在。
+
+**解决 — 运行补丁脚本：**
+
+```powershell
+node scripts/patch-electron-builder.cjs
+pnpm run electron:package:win
+```
+
+### 3.12 开发者：打包报错 `EPERM: operation not permitted, rename ... win-unpacked.tmp`
+
+**原因**：Windows 杀毒软件（如 Defender）在扫描刚解压的 Electron 文件时持有文件句柄，导致重命名失败。
+
+**解决 — 同上，运行补丁脚本**（Patch 3 处理此问题）：
+
+```powershell
+node scripts/patch-electron-builder.cjs
+```
+
+> **注意**：每次 `pnpm install` 重装依赖后，补丁会被覆盖，需要重新运行 `node scripts/patch-electron-builder.cjs`。
+
+### 3.13 开发者：重新干净安装依赖
 
 如果依赖状态混乱，可以删除依赖目录后重新安装：
 
@@ -326,6 +369,10 @@ pnpm install
 cd path\to\project\frontend
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
 pnpm install
+# 修复 electron-builder@26.15.3 兼容性 bug（每次 pnpm install 后都要执行）
+node scripts/patch-electron-builder.cjs
+# 使用国内镜像打包（避免 GitHub 下载超时）
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
 pnpm run electron:package:win
 ```
 
@@ -334,5 +381,6 @@ pnpm run electron:package:win
 ```powershell
 pnpm approve-builds
 pnpm install
+node scripts/patch-electron-builder.cjs
 pnpm run electron:package:win
 ```

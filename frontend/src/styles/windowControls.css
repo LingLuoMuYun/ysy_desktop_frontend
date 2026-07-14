@@ -9,16 +9,21 @@
 .home-toolbar textarea,
 .home-toolbar select,
 .home-toolbar [role="button"],
-.titlebar-icon-tip {
+.home-toolbar strong,
+.titlebar-icon-tip,
+.titlebar-module-label,
+.titlebar-rename {
   -webkit-app-region: no-drag;
 }
 
 .titlebar-right {
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
+  height: var(--topbar-height);
 }
 
 @media (min-width: 761px) {
   .home-toolbar {
-    padding-right: 152px;
+    padding-right: 154px;
   }
 }

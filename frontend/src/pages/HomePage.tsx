@@ -411,7 +411,7 @@ export function HomePage({
       onClick={handleSend}
       disabled={!inputValue.trim() || isStreaming}
     >
-      <ArrowUp size={18} />
+      <ArrowUp size={15} />
     </button>
   );
 

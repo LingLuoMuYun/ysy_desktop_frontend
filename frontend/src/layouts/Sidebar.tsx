@@ -29,7 +29,7 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
               onClick={() => onRouteChange(route.key)}
               type="button"
             >
-              <Icon size={19} />
+              <Icon size={16} />
               <span>{route.label}</span>
             </button>
           );

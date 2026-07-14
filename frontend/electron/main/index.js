@@ -205,7 +205,7 @@ function createWindow() {
             ? {
                 color: "#ffffff",
                 symbolColor: "#5f6672",
-                height: 48,
+                height: 56,
             }
             : false,
         autoHideMenuBar: !isMac,

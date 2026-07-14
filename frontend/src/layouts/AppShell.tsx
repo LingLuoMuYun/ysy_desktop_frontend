@@ -20,6 +20,9 @@ interface AppShellProps {
 const DEFAULT_RIGHT_PANEL_WIDTH = 354;
 const MIN_RIGHT_PANEL_WIDTH = 320;
 const MAX_RIGHT_PANEL_WIDTH = 460;
+const DEFAULT_HISTORY_PANEL_WIDTH = 236;
+const MIN_HISTORY_PANEL_WIDTH = 220;
+const MAX_HISTORY_PANEL_WIDTH = 500;
 const AUTO_COLLAPSE_WIDTH = 960;
 
 const createConversationId = () => `home-conversation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -222,6 +225,7 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<ConversationSummary | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(DEFAULT_RIGHT_PANEL_WIDTH);
+  const [historyPanelWidth, setHistoryPanelWidth] = useState(DEFAULT_HISTORY_PANEL_WIDTH);
   const [pageRefreshNonce, setPageRefreshNonce] = useState(0);
   const isHome = activeRoute === "home";
   const effectiveSidebarCollapsed = sidebarCollapsed || autoCompactShell;
@@ -235,6 +239,7 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
   const showGridAssistant = showAssistant;
   const shellStyle = {
     "--assistant-width": `${rightPanelWidth}px`,
+    "--history-width": conversationHistoryOpen && !autoCompactShell ? `${historyPanelWidth}px` : "0px",
   } as CSSProperties;
 
   useEffect(() => {
@@ -336,6 +341,26 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
     window.addEventListener("pointerup", handlePointerUp, { once: true });
   }, [rightPanelWidth]);
 
+  const handleHistoryPanelResize = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const startX = event.clientX;
+    const startWidth = historyPanelWidth;
+    const pointerId = event.pointerId;
+    event.currentTarget.setPointerCapture(pointerId);
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const nextWidth = startWidth + (moveEvent.clientX - startX);
+      setHistoryPanelWidth(Math.min(MAX_HISTORY_PANEL_WIDTH, Math.max(MIN_HISTORY_PANEL_WIDTH, nextWidth)));
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }, [historyPanelWidth]);
+
   const handleHomeMessagesChange = useCallback((messages: ConversationSummary["messages"], title: string) => {
     setHomeConversations((current) => {
       const existingConversation = current.find((conversation) => conversation.id === activeHomeConversation.id);
@@ -383,6 +408,14 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
   const handleProviderSelectConversation = useCallback((conversationId: string) => {
     void handleSelectConversation(conversationId);
   }, [handleSelectConversation]);
+
+  const handleRenameConversation = useCallback((conversationId: string, newTitle: string) => {
+    setHomeConversations((current) =>
+      current.map((conv) =>
+        conv.id === conversationId ? { ...conv, title: newTitle } : conv,
+      ),
+    );
+  }, []);
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
     const target = homeConversations.find((conversation) => conversation.id === conversationId);
@@ -515,21 +548,37 @@ export function AppShell({ activeRoute, children, onRouteChange }: AppShellProps
             resourceOverviewOpen={resourceOverviewOpen}
             showResourceControls={isHome}
             onRefreshPage={handleRefreshPage}
+            onRenameModule={
+              isHome
+                ? (newTitle: string) => handleRenameConversation(activeHomeConversation.id, newTitle)
+                : undefined
+            }
             onToggleAssistant={() => setAssistantOpen((isOpen) => !isOpen)}
             onToggleConversationHistory={handleToggleConversationHistory}
             onNewConversation={handleNewConversation}
             onToggleResourceOverview={() => setResourceOverviewOpen((isOpen) => !isOpen)}
           />
           {isHome && !autoCompactShell ? (
-            <ConversationHistoryPanel
-              activeConversationId={activeHomeConversation.id}
-              conversations={visibleConversations}
-              error={historyError}
-              loading={historyLoading}
-              open={conversationHistoryOpen}
-              onDeleteConversation={handleDeleteConversation}
-              onSelectConversation={(conversationId) => void handleSelectConversation(conversationId)}
-            />
+            <>
+              <ConversationHistoryPanel
+                activeConversationId={activeHomeConversation.id}
+                conversations={visibleConversations}
+                error={historyError}
+                loading={historyLoading}
+                open={conversationHistoryOpen}
+                onDeleteConversation={handleDeleteConversation}
+                onRenameConversation={handleRenameConversation}
+                onSelectConversation={(conversationId) => void handleSelectConversation(conversationId)}
+              />
+              {conversationHistoryOpen ? (
+                <button
+                  className="history-panel-resizer"
+                  type="button"
+                  aria-label="调整历史栏宽度"
+                  onPointerDown={handleHistoryPanelResize}
+                />
+              ) : null}
+            </>
           ) : null}
           <div className="app-surface">
             <main className={`workspace workspace--${activeRoute}`} key={`${activeRoute}-${pageRefreshNonce}`}>

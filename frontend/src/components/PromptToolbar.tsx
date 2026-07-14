@@ -152,151 +152,153 @@ export function PromptToolbar({
         onChange={handleFileChange}
       />
 
-      {/* +号 */}
-      <PortalDropdown
-        open={openMenu === "plus"}
-        onClose={() => { setOpenMenu(null); setSkillsSubOpen(false); }}
-        align="left"
-        menuClassName={`prompt-dropdown${skillsSubOpen ? " prompt-dropdown--skills" : ""}`}
-        trigger={
-          <button
-            className={`round-button${openMenu === "plus" ? " round-button--active" : ""}${plusClassName ? ` ${plusClassName}` : ""}`}
-            type="button"
-            title="更多选项"
-            onClick={() => { setOpenMenu(openMenu === "plus" ? null : "plus"); setSkillsSubOpen(false); }}
-          >
-            <Plus size={20} />
-          </button>
-        }
-      >
-        <div className={`prompt-dropdown__columns${skillsSubOpen ? " prompt-dropdown__columns--sub" : ""}`}>
-          <div className="prompt-dropdown__col">
-            {PLUS_OPTIONS.map((opt) => (
-              <button
-                className={`prompt-dropdown__item${skillsSubOpen && opt.key === "skills" ? " prompt-dropdown__item--active" : ""}`}
-                type="button"
-                key={opt.key}
-                onClick={() => handlePlusOptionClick(opt.key)}
-              >
-                <opt.icon size={15} className="prompt-dropdown__item-icon" />
-                <span>{opt.label}</span>
-                {opt.key === "skills" && (
-                  <ChevronRight size={12} className="prompt-dropdown__item-arrow" />
-                )}
-              </button>
-            ))}
-          </div>
-          {skillsSubOpen && (
-            <div className="prompt-dropdown__col prompt-dropdown__col--sub">
-              {SKILL_OPTIONS.map((skill) => (
+      <div className="prompt-tools__left">
+        {/* +号 */}
+        <PortalDropdown
+          open={openMenu === "plus"}
+          onClose={() => { setOpenMenu(null); setSkillsSubOpen(false); }}
+          align="left"
+          menuClassName={`prompt-dropdown${skillsSubOpen ? " prompt-dropdown--skills" : ""}`}
+          trigger={
+            <button
+              className={`round-button${openMenu === "plus" ? " round-button--active" : ""}${plusClassName ? ` ${plusClassName}` : ""}`}
+              type="button"
+              title="更多选项"
+              onClick={() => { setOpenMenu(openMenu === "plus" ? null : "plus"); setSkillsSubOpen(false); }}
+            >
+              <Plus size={14} />
+            </button>
+          }
+        >
+          <div className={`prompt-dropdown__columns${skillsSubOpen ? " prompt-dropdown__columns--sub" : ""}`}>
+            <div className="prompt-dropdown__col">
+              {PLUS_OPTIONS.map((opt) => (
                 <button
-                  className="prompt-dropdown__item"
+                  className={`prompt-dropdown__item${skillsSubOpen && opt.key === "skills" ? " prompt-dropdown__item--active" : ""}`}
                   type="button"
-                  key={skill.key}
-                  onClick={() => {
-                    onSkillToggle?.(skill);
-                    setOpenMenu(null);
-                    setSkillsSubOpen(false);
-                  }}
+                  key={opt.key}
+                  onClick={() => handlePlusOptionClick(opt.key)}
                 >
-                  <span
-                    className="prompt-dropdown__skill-dot"
-                    style={{ backgroundColor: skill.color }}
-                  />
-                  <span>{skill.label}</span>
+                  <opt.icon size={13} className="prompt-dropdown__item-icon" />
+                  <span>{opt.label}</span>
+                  {opt.key === "skills" && (
+                    <ChevronRight size={10} className="prompt-dropdown__item-arrow" />
+                  )}
                 </button>
               ))}
             </div>
-          )}
-        </div>
-      </PortalDropdown>
-
-      {/* 辅助填写 */}
-      <PortalDropdown
-        open={openMenu === "assist"}
-        onClose={() => setOpenMenu(null)}
-        align="left"
-        menuClassName="prompt-dropdown prompt-dropdown--assist"
-        trigger={
-          <button
-            className={`prompt-select${openMenu === "assist" ? " prompt-select--open" : ""}${assistClassName ? ` ${assistClassName}` : ""}`}
-            type="button"
-            onClick={() => setOpenMenu(openMenu === "assist" ? null : "assist")}
-          >
-            {activeAssist.label}
-            <ChevronDown size={14} />
-          </button>
-        }
-      >
-        {ASSIST_OPTIONS.map((opt) => (
-          <button
-            className={`prompt-dropdown__item${opt.key === assistMode ? " prompt-dropdown__item--active" : ""}`}
-            type="button"
-            key={opt.key}
-            onClick={() => {
-              setAssistMode(opt.key);
-              setOpenMenu(null);
-            }}
-          >
-            <opt.icon size={15} className="prompt-dropdown__item-icon" />
-            <div className="prompt-dropdown__item-text">
-              <span className="prompt-dropdown__item-label">{opt.label}</span>
-              <span className="prompt-dropdown__item-desc">{opt.desc}</span>
-            </div>
-            {opt.key === assistMode && <span className="prompt-dropdown__check" />}
-          </button>
-        ))}
-      </PortalDropdown>
-
-      {/* 模型选择 */}
-      <PortalDropdown
-        open={openMenu === "model"}
-        onClose={() => setOpenMenu(null)}
-        align="right"
-        menuClassName="prompt-dropdown prompt-dropdown--model"
-        trigger={
-          <button
-            className={`prompt-select prompt-select--model${openMenu === "model" ? " prompt-select--open" : ""}${modelClassName ? ` ${modelClassName}` : ""}`}
-            type="button"
-            onClick={() => setOpenMenu(openMenu === "model" ? null : "model")}
-          >
-            {currentModel ? <ModelVendorOptionIcon provider={currentModel.provider} /> : null}
-            <span className="prompt-select__label">{activeModelLabel}</span>
-            <ChevronDown size={14} />
-          </button>
-        }
-      >
-        {selectableModels.length === 0 ? (
-          <div className="prompt-dropdown__empty">请先在设置中添加模型</div>
-        ) : (
-          <>
-            {modelSwitchError && (
-              <div className="prompt-dropdown__empty" role="alert">
-                {modelSwitchError}
+            {skillsSubOpen && (
+              <div className="prompt-dropdown__col prompt-dropdown__col--sub">
+                {SKILL_OPTIONS.map((skill) => (
+                  <button
+                    className="prompt-dropdown__item"
+                    type="button"
+                    key={skill.key}
+                    onClick={() => {
+                      onSkillToggle?.(skill);
+                      setOpenMenu(null);
+                      setSkillsSubOpen(false);
+                    }}
+                  >
+                    <span
+                      className="prompt-dropdown__skill-dot"
+                      style={{ backgroundColor: skill.color }}
+                    />
+                    <span>{skill.label}</span>
+                  </button>
+                ))}
               </div>
             )}
-            {selectableModels.map((model) => (
-              <button
-                className={`prompt-dropdown__item prompt-dropdown__item--model${
-                  model.id === currentModel?.id ? " prompt-dropdown__item--active" : ""
-                }`}
-                type="button"
-                key={model.id}
-                disabled={Boolean(switchingModelId) || model.status !== "可用"}
-                onClick={() => void handleModelSelect(model.id)}
-              >
-                <ModelVendorOptionIcon provider={model.provider} />
-                <div className="prompt-dropdown__item-text">
-                  <span className="prompt-dropdown__item-label">{model.name}</span>
-                  <span className="prompt-dropdown__item-desc">{model.provider}</span>
+          </div>
+        </PortalDropdown>
+
+        {/* 辅助填写 */}
+        <PortalDropdown
+          open={openMenu === "assist"}
+          onClose={() => setOpenMenu(null)}
+          align="left"
+          menuClassName="prompt-dropdown prompt-dropdown--assist"
+          trigger={
+            <button
+              className={`prompt-select${openMenu === "assist" ? " prompt-select--open" : ""}${assistClassName ? ` ${assistClassName}` : ""}`}
+              type="button"
+              onClick={() => setOpenMenu(openMenu === "assist" ? null : "assist")}
+            >
+              {activeAssist.label}
+              <ChevronDown size={11} />
+            </button>
+          }
+        >
+          {ASSIST_OPTIONS.map((opt) => (
+            <button
+              className={`prompt-dropdown__item${opt.key === assistMode ? " prompt-dropdown__item--active" : ""}`}
+              type="button"
+              key={opt.key}
+              onClick={() => {
+                setAssistMode(opt.key);
+                setOpenMenu(null);
+              }}
+            >
+              <opt.icon size={13} className="prompt-dropdown__item-icon" />
+              <div className="prompt-dropdown__item-text">
+                <span className="prompt-dropdown__item-label">{opt.label}</span>
+                <span className="prompt-dropdown__item-desc">{opt.desc}</span>
+              </div>
+              {opt.key === assistMode && <span className="prompt-dropdown__check" />}
+            </button>
+          ))}
+        </PortalDropdown>
+
+        {/* 模型选择 */}
+        <PortalDropdown
+          open={openMenu === "model"}
+          onClose={() => setOpenMenu(null)}
+          align="right"
+          menuClassName="prompt-dropdown prompt-dropdown--model"
+          trigger={
+            <button
+              className={`prompt-select prompt-select--model${openMenu === "model" ? " prompt-select--open" : ""}${modelClassName ? ` ${modelClassName}` : ""}`}
+              type="button"
+              onClick={() => setOpenMenu(openMenu === "model" ? null : "model")}
+            >
+              {currentModel ? <ModelVendorOptionIcon provider={currentModel.provider} /> : null}
+              <span className="prompt-select__label">{activeModelLabel}</span>
+              <ChevronDown size={11} />
+            </button>
+          }
+        >
+          {selectableModels.length === 0 ? (
+            <div className="prompt-dropdown__empty">请先在设置中添加模型</div>
+          ) : (
+            <>
+              {modelSwitchError && (
+                <div className="prompt-dropdown__empty" role="alert">
+                  {modelSwitchError}
                 </div>
-                <StatusBadge label={switchingModelId === model.id ? "切换中" : model.status} tone={model.tone} />
-                {model.id === currentModel?.id && <span className="prompt-dropdown__check" />}
-              </button>
-            ))}
-          </>
-        )}
-      </PortalDropdown>
+              )}
+              {selectableModels.map((model) => (
+                <button
+                  className={`prompt-dropdown__item prompt-dropdown__item--model${
+                    model.id === currentModel?.id ? " prompt-dropdown__item--active" : ""
+                  }`}
+                  type="button"
+                  key={model.id}
+                  disabled={Boolean(switchingModelId) || model.status !== "可用"}
+                  onClick={() => void handleModelSelect(model.id)}
+                >
+                  <ModelVendorOptionIcon provider={model.provider} />
+                  <div className="prompt-dropdown__item-text">
+                    <span className="prompt-dropdown__item-label">{model.name}</span>
+                    <span className="prompt-dropdown__item-desc">{model.provider}</span>
+                  </div>
+                  <StatusBadge label={switchingModelId === model.id ? "切换中" : model.status} tone={model.tone} />
+                  {model.id === currentModel?.id && <span className="prompt-dropdown__check" />}
+                </button>
+              ))}
+            </>
+          )}
+        </PortalDropdown>
+      </div>
 
       {sendButton}
     </div>
@@ -323,7 +325,7 @@ export function ProjectSelect({ className }: { className?: string }) {
             onClick={() => setOpen((v) => !v)}
           >
             {PROJECT_OPTIONS.find((p) => p.key === selectedProject)?.label ?? "不关联"}
-            <ChevronDown size={13} />
+            <ChevronDown size={10} />
           </button>
         }
       >
