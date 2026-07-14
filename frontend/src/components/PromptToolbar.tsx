@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { AssistMode } from "../layouts/AssistantPanelContext";
 import { useAssistantPanel } from "../layouts/AssistantPanelContext";
+import { ModelVendorOptionIcon } from "./ModelVendorAvatar";
 import { PortalDropdown } from "./PortalDropdown";
 import { StatusBadge } from "./StatusBadge";
 import type { ReactNode } from "react";
@@ -263,6 +264,7 @@ export function PromptToolbar({
             type="button"
             onClick={() => setOpenMenu(openMenu === "model" ? null : "model")}
           >
+            {currentModel ? <ModelVendorOptionIcon provider={currentModel.provider} /> : null}
             <span className="prompt-select__label">{activeModelLabel}</span>
             <ChevronDown size={14} />
           </button>
@@ -287,6 +289,7 @@ export function PromptToolbar({
                 disabled={Boolean(switchingModelId) || model.status !== "可用"}
                 onClick={() => void handleModelSelect(model.id)}
               >
+                <ModelVendorOptionIcon provider={model.provider} />
                 <div className="prompt-dropdown__item-text">
                   <span className="prompt-dropdown__item-label">{model.name}</span>
                   <span className="prompt-dropdown__item-desc">Provider: {model.provider} · 上下文 {model.context}</span>

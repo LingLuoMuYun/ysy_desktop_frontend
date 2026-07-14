@@ -36,7 +36,7 @@ function normalizeVendorIconKey(value: string) {
   return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
 }
 
-function getModelVendorIcon(provider: string) {
+export function getModelVendorIcon(provider: string) {
   const direct = MODEL_VENDOR_ICON_MAP[provider] || MODEL_VENDOR_ICON_MAP[provider.trim()];
   if (direct) return direct;
 
@@ -46,6 +46,15 @@ function getModelVendorIcon(provider: string) {
     return normalizedProvider === normalizedKey || normalizedProvider.includes(normalizedKey);
   });
   return matched?.[1] ?? null;
+}
+
+export function ModelVendorOptionIcon({ provider }: { provider: string }) {
+  const iconUrl = getModelVendorIcon(provider);
+  return (
+    <span className={`model-vendor-option-icon${iconUrl ? " model-vendor-option-icon--image" : ""}`} aria-hidden="true">
+      {iconUrl ? <img src={iconUrl} alt="" /> : provider.slice(0, 1).toUpperCase()}
+    </span>
+  );
 }
 
 export function ModelVendorAvatar({
