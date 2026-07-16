@@ -9,7 +9,7 @@
 | 模块 | 路径 | 说明 |
 |------|------|------|
 | 首页 | `/` | 全局概览、快速入口、AI 助手居中对话框 |
-| 项目 | `/projects` | 创建和管理 AI 项目，绑定数据、环境、代码目录 |
+| 项目 | `/projects` | 创建和管理 AI 项目，支持筛选、搜索、分页、创建、删除和项目详情弹窗 |
 | 任务 | `/tasks` | 训练 / 部署任务的创建、执行、监控和日志查看 |
 | 数据 | `/data` | 数据集导入、格式检查、质量分析和版本管理 |
 | 模型 | `/models` | 模型资产导入、登记、检查、版本对比和推理部署 |
@@ -43,7 +43,7 @@
 | Python | 业务后端、任务执行器、数据/模型/环境检测 |
 | AI Agent | 上下文组装、日志诊断、动作请求、受控工具编排 |
 
-前端当前对接两个后端入口：AI 助手 / chat runtime 默认 `http://10.0.1.5:8765`，运行环境业务后端默认 `http://10.0.1.5:8000`。`VITE_API_BASE_URL` 可覆盖通用 API Base，`VITE_ENVIRONMENTS_API_BASE_URL` 可单独覆盖环境业务后端；开发环境中若浏览器直连失败，会回退到 Vite 同源代理。
+前端当前对接多个后端入口：AI 助手 / chat runtime 默认 `http://10.0.1.5:8765`，运行环境业务后端默认 `http://10.0.1.5:8000`，项目业务接口当前通过 `projectsApi` 和 Vite `/api/projects` 代理接入业务后端。`VITE_API_BASE_URL` 可覆盖通用 API Base，`VITE_ENVIRONMENTS_API_BASE_URL` 可单独覆盖环境业务后端，`VITE_PROJECTS_API_BASE_URL` 可单独覆盖项目业务后端；开发环境中若浏览器直连失败，会回退到 Vite 同源代理。
 
 ## 项目结构
 
@@ -54,7 +54,7 @@ ysy_desktop/
 │   │   ├── app/               # App 入口、路由配置
 │   │   ├── components/        # 通用组件（SidebarToggle、StatusBadge、EmptyState、ConfirmPlaceholder、
 │   │   │                      #   Toolbar、PromptToolbar、PortalDropdown）
-│   │   ├── features/          # 业务 Feature 目录（按领域划分子目录，当前为空壳待填充）
+│   │   ├── features/          # 业务 Feature 目录（projects 已拆分列表 Hook、创建/删除/详情弹窗）
 │   │   ├── hooks/             # 共享 Hooks（规划中）
 │   │   ├── layouts/           # 布局组件（AppShell、Sidebar、WindowTitleBar、AssistantPanel 等）
 │   │   ├── mocks/             # Mock 原型数据
@@ -180,6 +180,8 @@ pnpm run electron:preview
 - [前端 README](frontend/README.md) — 前端工程说明与启动方式
 - [前端 AGENTS.md](frontend/AGENTS.md) — 前端 AI 编码规则
 - [前端 OpenSpec](openspec/frontend/) — 前端 Global Spec、Module Spec、Changes
+- [项目页变更分析总结](docs/development/2026-07-16-project-page-change-analysis.md)
+- [前端经验报告](docs/development/2026-07-16-frontend-experience-report.md)
 - [前端接口替换文档](frontend/docs/前端接口替换文档v2.md)
 - [后端接口文档](frontend/docs/后端接口文档.md)
 - [智能体接口文档](frontend/docs/智能体接口.md)

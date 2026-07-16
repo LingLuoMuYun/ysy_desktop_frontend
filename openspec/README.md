@@ -14,6 +14,8 @@ openspec/
     modules/backend.spec.md           # 后端契约边界
     modules/agent.spec.md             # AI 助手与智能编排边界
     changes/                          # 前端需求变更目录
+      add-project-detail-dialog/       # 项目详情弹窗、项目页总结和经验报告
+      optimize-project-page-reference/ # 项目页列表式布局和参考图还原
   changes/
     improve-desktop-responsive-layout/ # 跨模块或当前活跃变更
   specs/                              # OpenSpec 工具预留目录
@@ -55,4 +57,4 @@ openspec/changes/<change-id>/
 - 修改一级模块、核心实体、状态机、高风险动作边界时，必须同步评估 Global / Module Spec。
 - 完成实现后更新 `tasks.md` 和验收记录；只改代码不更新任务状态视为未收口。
 - 不再使用 `docs/specs/`；不要重新创建平行 specs 体系。
-
+- 前端项目页相关文档沉淀在 `docs/development/2026-07-16-project-page-change-analysis.md` 和 `docs/development/2026-07-16-frontend-experience-report.md`，后续继续开发项目详情、任务记录或模型资产时应同步更新对应 Change 和分析文档。

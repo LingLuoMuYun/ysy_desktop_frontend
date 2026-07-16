@@ -5,7 +5,7 @@
 ## 项目注意点
 
 - 项目：`ysy_desktop`，本地深度学习实验和轻量大模型工作流桌面应用。
-- 前端范围：只负责 `frontend/` 下 React + TypeScript + Electron + Vite 相关代码、前端文档、前端验收记录和必要共享契约。更改openspec的时候应当在`/openspec/frontend`中做修改
+- 前端范围：只负责 `frontend/` 下 React + TypeScript + Electron + Vite 相关代码、前端文档、前端验收记录和必要共享契约。更改 OpenSpec 时应优先在 `openspec/frontend/` 下做修改。
 - 前端不得越权决定后端、AI 助手、全局系统边界或非前端 OpenSpec。
 - 前端 OpenSpec 固定读取 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/frontend/`；跨模块或活跃顶层变更同时检查 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/changes/`。
 - 前端需求变更优先读取 `openspec/frontend/changes/<change-id>/`；若任务指向顶层变更，则读取 `openspec/changes/<change-id>/`。
@@ -97,7 +97,7 @@ frontend/
   tests/
 ```
 
-> 当前状态：`features/<domain>/` 子目录已创建但多数仍为空壳，设置页主体逻辑仍在 `pages/SettingsPage.tsx` 中。后续重构按 Page -> Feature -> Hook/Service -> Component 渐进拆分。`types/domain.ts` 集中管理领域类型，`styles/tokens.css` 提供设计 Token。
+> 当前状态：`features/projects/` 已承载项目列表 Hook、创建项目弹窗、删除确认弹窗、项目详情弹窗和项目表单辅助组件；其他领域子目录仍以渐进拆分为主。设置页主体逻辑仍在 `pages/SettingsPage.tsx` 中。后续重构按 Page -> Feature -> Hook/Service -> Component 渐进拆分。`types/domain.ts` 集中管理领域类型，`styles/tokens.css` 提供设计 Token。
 
 调用方向：
 
@@ -123,6 +123,7 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - IPC Client 负责安全封装渲染进程到 preload / 主进程调用。
 - Store 只保存跨组件或跨页面状态，不存大量临时 UI 状态。
 - feature 不直接依赖其他 feature 内部实现；共享内容下沉到公共层。
+- 项目页当前结构：`ProjectsPage.tsx` 只做页面装配、Toast 和弹窗桥接；项目列表状态放在 `features/projects/useProjectList.ts`；项目创建、删除和详情弹窗分别放在 `features/projects/ProjectCreateDialog.tsx`、`ProjectDeleteDialog.tsx`、`ProjectDetailDialog.tsx`。
 
 ## 编码规则
 
@@ -146,6 +147,7 @@ Page / Route -> Feature -> Hook / Service / Store -> API Client -> 后端
 - localStorage / sessionStorage 只存非敏感偏好；Electron 持久化走主进程安全能力。
 - API 错误映射集中在 `services/api/` 或 feature API 层，不散落页面/组件。
 - 当前服务层仍在 `src/services/` 扁平目录；新增接口应先复用现有请求封装，复杂后再拆 `services/api/`。
+- 项目业务接口由 `services/projectsApi.ts` 封装；项目列表、规格、详情、创建、删除和路径校验均通过该服务层进入后端或 Vite proxy，不在页面组件中直接拼接请求。
 - mock 只能辅助开发，不能替代正式接口契约。
 - 首页对话历史当前为前端内存态；接入真实 AI sessions 时，应在 AppShell 或独立 home feature/service 中适配 `/api/sessions`、`/api/sessions/{session_key}`，不要把接口 DTO 泄漏到展示组件。
 
