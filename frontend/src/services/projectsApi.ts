@@ -1,6 +1,6 @@
 import type { ProjectSummary, StatusTone } from "../types/domain";
 
-const DEFAULT_API_BASE = "http://10.0.78.12:8000";
+const DEFAULT_API_BASE = "http://10.0.221.143:8000";
 const API_BASE = import.meta.env.VITE_PROJECTS_API_BASE_URL
   || import.meta.env.VITE_ENVIRONMENTS_API_BASE_URL
   || import.meta.env.VITE_API_BASE_URL
@@ -178,10 +178,6 @@ function formatDate(project: BackendProject) {
   return project.updatedAtText || project.updatedAt || project.createdAt || "-";
 }
 
-function formatCount(value: number | undefined) {
-  return Number.isFinite(value) ? String(value) : "0";
-}
-
 function mapProject(project: BackendProject): ProjectSummary {
   return {
     id: project.id,
@@ -194,7 +190,7 @@ function mapProject(project: BackendProject): ProjectSummary {
     type: project.type || "-",
     trainingTasks: project.trainingTaskCount ?? project.taskCount ?? 0,
     deploymentTasks: project.deploymentTaskCount ?? 0,
-    datasetCount: formatCount(project.datasetCount),
+    datasetCount: project.datasetCount ?? 0,
     modelCount: project.modelCount ?? 0,
     environmentId: project.environmentId,
     environmentName: project.environmentName,

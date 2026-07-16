@@ -8,12 +8,14 @@
 
 /* ---- 页面布局 ----
    覆盖 .workbench-page 的 2 行布局为 3 行。 ---- */
-.project-page {
+.workbench-page.project-page {
   position: relative;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding: 14px 24px 14px 24px;
   background: var(--surface);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -133,20 +135,24 @@
 .project-list-shell {
   position: relative;
   z-index: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-height: 0;
-  margin-top: 12px;
   overflow: hidden;
-  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
 .project-page .project-grid {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 12px;
-  padding: 14px;
+  min-height: 0;
+  padding: 12px 14px 14px;
   background: var(--surface);
-  align-content: start;
 }
 
 .project-state {
@@ -187,6 +193,7 @@
   gap: 12px;
   min-height: 80px;
   padding: 14px 16px;
+  cursor: pointer;
 }
 
 .project-page .project-card:focus-within {
@@ -243,6 +250,29 @@
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 项目名称点击按钮（查看详情入口） */
+.project-card__name-btn {
+  max-width: 100%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-card__name-btn:hover {
+  color: var(--blue);
+  text-decoration: underline;
 }
 
 /* 状态标签 */
@@ -424,7 +454,6 @@
   color: var(--text-soft);
   font-size: 13px;
   background: var(--surface);
-  border-top: 1px solid var(--line);
 }
 
 .project-page__pagination-nav {
@@ -545,65 +574,218 @@
 
 .project-detail-dialog {
   width: min(680px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+  overflow: hidden;
+  border-radius: 10px;
 }
 
 .project-detail-dialog__body {
   display: grid;
   align-content: start;
   gap: 16px;
-  padding: 20px 22px;
+  min-height: 0;
+  padding: 18px 24px 22px;
+  background: #fff;
 }
 
-.project-detail-dialog__summary {
-  display: grid;
-  grid-template-columns: minmax(0, auto) auto;
-  justify-content: start;
+.project-detail-hero {
+  display: flex;
   align-items: center;
-  gap: 8px 12px;
+  gap: 14px;
   min-width: 0;
 }
 
-.project-detail-dialog__summary h3 {
+.project-detail-hero__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  color: #fff;
+  background: #24b47e;
+  border-radius: 9px;
+}
+
+.project-detail-hero__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.project-detail-hero__title h3 {
   margin: 0;
   overflow: hidden;
   color: #1f2329;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.project-detail-dialog__summary p {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: #5f6878;
-  font-size: 13px;
-  line-height: 1.6;
+.project-detail-hero .status-badge,
+.project-detail-overview .status-badge {
+  height: 28px;
+  padding: 0 10px;
+  color: #d46b08;
+  font-size: 14px;
+  font-weight: 500;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
 }
 
 .project-detail-tabs {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  min-width: 0;
 }
 
-.project-detail-tabs__item {
-  display: grid;
-  gap: 6px;
-  padding: 13px 14px;
-  background: #f8fafc;
-  border: 1px dashed #d9dee8;
-  border-radius: 6px;
+.project-detail-tabs__tab {
+  position: relative;
+  height: 36px;
+  padding: 0;
+  color: #697386;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
 }
 
-.project-detail-tabs__item strong {
+.project-detail-tabs__tab:hover {
+  color: var(--blue);
+}
+
+.project-detail-tabs__tab--active {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.project-detail-tabs__tab--active::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--blue);
+  border-radius: 999px;
+  content: "";
+}
+
+.project-detail-overview {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 14px 20px;
+  background: #fff;
+  border: 1px solid #dde2eb;
+  border-radius: 10px;
+}
+
+.project-detail-overview__row {
+  display: grid;
+  grid-template-columns: 144px minmax(0, 1fr);
+  align-items: center;
+  min-height: 40px;
+  gap: 0;
+}
+
+.project-detail-overview__row dt {
+  color: #697386;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.project-detail-overview__row dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
   color: #1f2329;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.project-detail-empty-panel {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 200px;
+  padding: 24px;
+  color: #697386;
+  text-align: center;
+  background: #fafbfc;
+  border: 1px dashed #d9dee8;
+  border-radius: 10px;
+}
+
+.project-detail-empty-panel strong {
+  color: #1f2329;
+  font-size: 15px;
+}
+
+.project-detail-empty-panel span {
   font-size: 13px;
 }
 
-.project-detail-tabs__item span {
-  color: #697386;
-  font-size: 12px;
-  line-height: 1.5;
+.project-detail-dialog__actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.project-detail-dialog__actions .settings-action-button {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.project-detail-dialog__actions .settings-action-button svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .project-detail-dialog {
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+  }
+
+  .project-detail-dialog__body {
+    padding: 16px;
+  }
+
+  .project-detail-hero__title {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .project-detail-hero__title h3 {
+    font-size: 20px;
+  }
+
+  .project-detail-tabs {
+    gap: 18px;
+    overflow-x: auto;
+  }
+
+  .project-detail-tabs__tab {
+    flex: 0 0 auto;
+    font-size: 15px;
+  }
+
+  .project-detail-overview__row {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .project-detail-dialog__actions {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 1280px) {

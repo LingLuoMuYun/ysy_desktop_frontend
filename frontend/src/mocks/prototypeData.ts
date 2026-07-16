@@ -94,7 +94,7 @@ export const projects: ProjectSummary[] = [
     path: "E:/ai-projects/llm-deploy-test",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "0 条",
+    datasetCount: 0,
     updatedAt: "今天 12:12",
   },
   {
@@ -106,7 +106,7 @@ export const projects: ProjectSummary[] = [
     path: "E:/ai-projects/quality-report-sft",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "45,280 条",
+    datasetCount: 45280,
     updatedAt: "昨天 10:06",
   },
   {
@@ -118,7 +118,7 @@ export const projects: ProjectSummary[] = [
     path: "D:/workspace/warehouse-detect",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "12,480 条",
+    datasetCount: 12480,
     updatedAt: "6月 18日",
   },
   {
@@ -130,7 +130,7 @@ export const projects: ProjectSummary[] = [
     path: "D:/archive/defect-classify-v1",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "8,632 条",
+    datasetCount: 8632,
     updatedAt: "今天 11:05",
   },
   {
@@ -142,7 +142,7 @@ export const projects: ProjectSummary[] = [
     path: "E:/ai-projects/rerank-eval",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "9,600 条",
+    datasetCount: 9600,
     updatedAt: "昨天 14:20",
     pathAction: "打开",
     cardActions: [
@@ -160,7 +160,7 @@ export const projects: ProjectSummary[] = [
     path: "D:/workspace/device-behavior",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "246,000 条",
+    datasetCount: 246000,
     updatedAt: "今天 08:40",
   },
   {
@@ -172,7 +172,7 @@ export const projects: ProjectSummary[] = [
     path: "E:/ai-projects/speech-intent",
     trainingTasks: 0,
     deploymentTasks: 0,
-    datasetCount: "5,430 条",
+    datasetCount: 5430,
     updatedAt: "6月 30日",
   },
 ];

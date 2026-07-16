@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const businessApiTarget = "http://10.0.78.12:8000";
+const businessApiTarget = "http://10.0.221.143:8000";
 const chatApiTarget = "http://10.0.1.5:8765";
 const businessApiProxy = {
   target: businessApiTarget,
@@ -17,6 +17,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api/environments": businessApiProxy,
+      "/api/projects": businessApiProxy,
       "/api/health": businessApiProxy,
       "/api/home": businessApiProxy,
       "/api/system": businessApiProxy,
@@ -33,6 +34,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api/environments": businessApiProxy,
+      "/api/projects": businessApiProxy,
       "/api/health": businessApiProxy,
       "/api/home": businessApiProxy,
       "/api/system": businessApiProxy,

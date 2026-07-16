@@ -34,6 +34,8 @@ export function WindowTitleBar({
   const [renameValue, setRenameValue] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [windowMaximized, setWindowMaximized] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const showWindowControls = window.ysyDesktop?.platform === "win32";
 
@@ -90,6 +92,23 @@ export function WindowTitleBar({
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu(null);
+  }, []);
+
+  /** 刷新按钮点击：启动旋转动画，最短持续 600ms */
+  const handleRefreshClick = useCallback(() => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    onRefreshPage();
+    refreshTimerRef.current = setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+  }, [isRefreshing, onRefreshPage]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
   }, []);
 
   const renameInput = renaming ? (
@@ -176,13 +195,14 @@ export function WindowTitleBar({
         {showResourceControls ? (
           <>
             <button
-              className="icon-button titlebar-refresh-button"
+              className={`icon-button titlebar-refresh-button${isRefreshing ? " titlebar-refresh-button--spinning" : ""}`}
               type="button"
               title="刷新页面状态"
               aria-label="刷新页面状态"
-              onClick={onRefreshPage}
+              disabled={isRefreshing}
+              onClick={handleRefreshClick}
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={15} className={isRefreshing ? "icon-spin" : ""} />
             </button>
             <button className="launcher-button" type="button">
               <Code2 size={14} />
@@ -202,13 +222,14 @@ export function WindowTitleBar({
         ) : (
           <>
             <button
-              className="icon-button titlebar-refresh-button"
+              className={`icon-button titlebar-refresh-button${isRefreshing ? " titlebar-refresh-button--spinning" : ""}`}
               type="button"
               title="刷新页面状态"
               aria-label="刷新页面状态"
-              onClick={onRefreshPage}
+              disabled={isRefreshing}
+              onClick={handleRefreshClick}
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={15} className={isRefreshing ? "icon-spin" : ""} />
             </button>
             <button
               className={`titlebar-assistant-button${assistantOpen ? " titlebar-assistant-button--active" : ""}`}

@@ -5,7 +5,7 @@
 ## 项目注意点
 
 - 项目：`ysy_desktop`，本地深度学习实验和轻量大模型工作流桌面应用。
-- 前端范围：只负责 `frontend/` 下 React + TypeScript + Electron + Vite 相关代码、前端文档、前端验收记录和必要共享契约。
+- 前端范围：只负责 `frontend/` 下 React + TypeScript + Electron + Vite 相关代码、前端文档、前端验收记录和必要共享契约。更改openspec的时候应当在`/openspec/frontend`中做修改
 - 前端不得越权决定后端、AI 助手、全局系统边界或非前端 OpenSpec。
 - 前端 OpenSpec 固定读取 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/frontend/`；跨模块或活跃顶层变更同时检查 `/Users/lingluo/Desktop/ysy_desktop-main/openspec/changes/`。
 - 前端需求变更优先读取 `openspec/frontend/changes/<change-id>/`；若任务指向顶层变更，则读取 `openspec/changes/<change-id>/`。

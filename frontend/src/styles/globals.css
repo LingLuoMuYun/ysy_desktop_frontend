@@ -778,6 +778,21 @@ body {
 
 .titlebar-refresh-button {
   flex: 0 0 auto;
+  transition: opacity 0.2s ease;
+}
+
+.titlebar-refresh-button--spinning {
+  opacity: 0.7;
+}
+
+/* 图标旋转动画（刷新按钮等） */
+.icon-spin {
+  animation: refresh-spin 0.7s linear infinite;
+}
+
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .launcher-button {

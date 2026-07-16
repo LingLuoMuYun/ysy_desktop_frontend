@@ -16,7 +16,7 @@ export interface ProjectSummary {
   type?: string;
   trainingTasks: number;
   deploymentTasks: number;
-  datasetCount: string;
+  datasetCount: number;
   modelCount?: number;
   environmentId?: string | null;
   environmentName?: string | null;
